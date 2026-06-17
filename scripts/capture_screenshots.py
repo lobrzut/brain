@@ -25,7 +25,16 @@ def capture() -> None:
         page.screenshot(path=str(OUT / "dashboard-home.png"), full_page=False)
 
         page.click('button.tab[data-view="brain"]')
-        page.wait_for_timeout(1500)
+        # Knowledge graph fetches /api/graph and renders canvas — can take 10–60s on large vaults
+        page.wait_for_function(
+            """() => {
+              const stats = document.querySelector('#graph-stats');
+              if (stats && /\\d+\\s+nodes/.test(stats.textContent || '')) return true;
+              return !!document.querySelector('#graph-canvas canvas');
+            }""",
+            timeout=120000,
+        )
+        page.wait_for_timeout(2500)
         page.screenshot(path=str(OUT / "dashboard-brain.png"), full_page=False)
 
         page.click('button.tab[data-view="pipeline"]')
