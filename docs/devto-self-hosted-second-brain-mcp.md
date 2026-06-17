@@ -2,29 +2,29 @@
 title: Self-hosted second brain with MCP
 published: true
 canonical_url: https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4
-description: Brain AI Hub — local Ollama, vault, RAG, and MCP servers for Cursor and Claude Code. Windows portable or Linux homelab install.
+description: Brain AI Hub - local Ollama, vault, RAG, and MCP servers for Cursor and Claude Code. Windows portable or Linux homelab install.
 tags: mcp, ollama, homelab, rag, selfhosted, ai
 cover_image: https://raw.githubusercontent.com/lobrzut/brain/main/docs/screenshots/dashboard-home.png
 ---
 
 I run IT and cybersecurity ops by day and tinker in a homelab at night. The problem I kept hitting: useful context from Cursor and Claude Code sessions evaporates when the chat ends. Notes end up scattered. RAG demos are cloud-first. I wanted something I own.
 
-So I built [Brain AI Hub](https://github.com/lobrzut/brain) — a portable second brain with a local LLM, markdown vault, semantic search, and MCP hooks for IDE agents.
+So I built [Brain AI Hub](https://github.com/lobrzut/brain): a portable second brain with a local LLM, markdown vault, semantic search, and MCP hooks for IDE agents.
 
 ## What it does
 
-1. **Local LLM** — Ollama (qwen2.5, nomic-embed). OpenAI-compatible API on `:11434`.
-2. **Knowledge store** — Obsidian-style vault, PDF/EPUB library, sqlite-vec RAG, lightweight knowledge graph.
-3. **Agent bridge** — three MCP servers (`brain-vault`, `brain-library`, `brain-rag`) with one-click deploy to Cursor, Claude Code, VS Code.
-4. **Transcript pipeline** — distills exports from Claude/Cursor/Antigravity into vault markdown, dedupes, indexes code, runs scheduled jobs.
-5. **Dashboard** — FastAPI UI on `:7860` for services, chat, GPU/VRAM, API keys, pipeline status.
+1. **Local LLM** - Ollama (qwen2.5, nomic-embed). OpenAI-compatible API on `:11434`.
+2. **Knowledge store** - Obsidian-style vault, PDF/EPUB library, sqlite-vec RAG, lightweight knowledge graph.
+3. **Agent bridge** - three MCP servers (`brain-vault`, `brain-library`, `brain-rag`) with one-click deploy to Cursor, Claude Code, VS Code.
+4. **Transcript pipeline** - distills exports from Claude/Cursor/Antigravity into vault markdown, dedupes, indexes code, runs scheduled jobs.
+5. **Dashboard** - FastAPI UI on `:7860` for services, chat, GPU/VRAM, API keys, pipeline status.
 
 ## Two editions
 
 | Edition | Install |
 |---------|---------|
-| **Windows portable** | `Install.bat` → `Start.bat` — copy the folder, run on another PC |
-| **Linux server** | `curl -fsSL …/linux/bootstrap.sh \| sudo bash` — systemd + MCP SSE gateway on `:7862` for LAN clients |
+| **Windows portable** | `Install.bat` then `Start.bat` - copy the folder, run on another PC |
+| **Linux server** | `curl -fsSL .../linux/bootstrap.sh \| sudo bash` - systemd + MCP SSE gateway on `:7862` for LAN clients |
 
 Install scripts speak English and Polish (`locale.env`: `LANG=en` or `LANG=pl`).
 
@@ -46,7 +46,7 @@ Agents can search your vault, pull library chunks, and run skills without sendin
 
 ## Why MCP instead of only RAG?
 
-RAG answers retrieval. MCP gives agents **tools** — write a note, list vault files, trigger a skill, query the code index. That matches how Cursor and Claude Code actually work: function calls mid-session, not a single embedding search at prompt time.
+RAG answers retrieval. MCP gives agents **tools**: write a note, list vault files, trigger a skill, query the code index. That matches how Cursor and Claude Code actually work: function calls mid-session, not a single embedding search at prompt time.
 
 ## Stack
 
