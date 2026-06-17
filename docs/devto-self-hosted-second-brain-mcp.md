@@ -24,9 +24,9 @@ So I built [Brain AI Hub](https://github.com/lobrzut/brain): a portable second b
 | Edition | Install |
 |---------|---------|
 | **Windows portable** | `Install.bat` then `Start.bat` - copy the folder, run on another PC |
-| **Linux server** | `curl -fsSL .../linux/bootstrap.sh \| sudo bash` - systemd + MCP SSE gateway on `:7862` for LAN clients |
+| **Linux server** | Run `linux/bootstrap.sh` on the server (see repo README) - MCP SSE gateway on `:7862` for LAN clients |
 
-Install scripts speak English and Polish (`locale.env`: `LANG=en` or `LANG=pl`).
+Install scripts speak English and Polish. Set `LANG=en` or `LANG=pl` in `locale.env`.
 
 ## MCP in practice
 
