@@ -131,15 +131,15 @@ if (-not (Test-Path $cfgPath)) {
 }
 Write-Ok "config.json"
 
-# Ollama env for portable models dir
-$envBat = Join-Path $Root "ollama-models\env.bat"
-$envDir = Split-Path $envBat -Parent
-New-Item -ItemType Directory -Force -Path $envDir | Out-Null
+# Ollama portable env (used by tray on Windows)
+$ollamaEnvDir = Join-Path $Root "ollama-models"
+New-Item -ItemType Directory -Force -Path $ollamaEnvDir | Out-Null
+$envBat = Join-Path $ollamaEnvDir "env.bat"
 @"
 @echo off
 set OLLAMA_MODELS=%~dp0..\data\ollama-models
 set OLLAMA_HOST=127.0.0.1:$OllamaPort
-"@ | Set-Content (Join-Path $P.Models "..\ollama-models-env.bat") -Encoding ASCII -ErrorAction SilentlyContinue
+"@ | Set-Content $envBat -Encoding ASCII
 
 if (-not $SkipModelPull) {
     Write-Step "ollama pull $Model"

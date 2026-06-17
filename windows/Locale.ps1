@@ -31,7 +31,7 @@ function Set-BrainLocale([ValidateSet('pl', 'en')][string]$Lang) {
 
 $script:BrainLocaleStrings = @{
     pl = @{
-        install_title           = 'Brain — instalacja (Windows portable)'
+        install_title           = 'Brain - instalacja (Windows portable)'
         install_python          = 'Instalacja Python 3.12 (embedded)...'
         install_deps            = 'Instalacja zaleznosci Python...'
         install_ollama          = 'Instalacja Ollama...'
@@ -43,8 +43,8 @@ $script:BrainLocaleStrings = @{
         start_tray_started      = 'Brain tray uruchomiony (PID {0})'
         start_dashboard         = 'Dashboard: http://127.0.0.1:7860'
         start_ollama            = 'Ollama:    http://127.0.0.1:11434'
-        start_hint_stop         = 'Stop: tray → QUIT BRAIN lub .\stop.ps1'
-        start_missing_python    = 'Brak {0} — uruchom Install.bat lub windows\install.ps1'
+        start_hint_stop         = 'Stop: tray -> QUIT BRAIN lub .\stop.ps1'
+        start_missing_python    = 'Brak {0} - uruchom Install.bat lub windows\install.ps1'
         stop_graceful           = 'Wyslano graceful shutdown do dashboardu'
         stop_pid                = 'Zatrzymano {0} (PID {1})'
         stop_pid_gone           = 'Proces {0} (PID {1}) nie dziala'
@@ -52,7 +52,7 @@ $script:BrainLocaleStrings = @{
         stop_done               = 'Zatrzymano.'
     }
     en = @{
-        install_title           = 'Brain — install (Windows portable)'
+        install_title           = 'Brain - install (Windows portable)'
         install_python          = 'Installing Python 3.12 (embedded)...'
         install_deps            = 'Installing Python dependencies...'
         install_ollama          = 'Installing Ollama...'
@@ -64,8 +64,8 @@ $script:BrainLocaleStrings = @{
         start_tray_started      = 'Brain tray started (PID {0})'
         start_dashboard         = 'Dashboard: http://127.0.0.1:7860'
         start_ollama            = 'Ollama:    http://127.0.0.1:11434'
-        start_hint_stop         = 'Stop: tray → QUIT BRAIN or .\stop.ps1'
-        start_missing_python    = 'Missing {0} — run Install.bat or windows\install.ps1'
+        start_hint_stop         = 'Stop: tray -> QUIT BRAIN or .\stop.ps1'
+        start_missing_python    = 'Missing {0} - run Install.bat or windows\install.ps1'
         stop_graceful           = 'Sent graceful shutdown to dashboard'
         stop_pid                = 'Stopped {0} (PID {1})'
         stop_pid_gone           = 'Process {0} (PID {1}) not running'
@@ -74,12 +74,12 @@ $script:BrainLocaleStrings = @{
     }
 }
 
-function L([string]$Key, [object[]]$Args = @()) {
+function L([string]$Key, [object[]]$FormatArgs = @()) {
     $lang = Get-BrainLocale
     $table = $script:BrainLocaleStrings[$lang]
     if (-not $table.ContainsKey($Key)) { $table = $script:BrainLocaleStrings['en'] }
     $fmt = $table[$Key]
     if ($null -eq $fmt) { return $Key }
-    if ($Args.Count -gt 0) { return [string]::Format($fmt, $Args) }
+    if ($FormatArgs.Count -gt 0) { return [string]::Format($fmt, $FormatArgs) }
     return $fmt
 }

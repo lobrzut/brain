@@ -23,6 +23,18 @@ Install scripts support **Polish** and **English** (`locale.env`: `LANG=pl` or `
 
 ---
 
+## Screenshots
+
+| Dashboard | Brain (vault / graph) |
+|-----------|------------------------|
+| ![Dashboard home](docs/screenshots/dashboard-home.png) | ![Brain tab](docs/screenshots/dashboard-brain.png) |
+
+| Pipeline |
+|----------|
+| ![Pipeline tab](docs/screenshots/dashboard-pipeline.png) |
+
+---
+
 ## Quick start — Windows
 
 ```
