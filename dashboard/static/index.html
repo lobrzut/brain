@@ -1,0 +1,1483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>BRAIN</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="style.css?v=20260527v3">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <!-- Pin to UMD build that exposes window.THREE (Cosmos theme needs it).
+       Newer 3d-force-graph (1.7+) bundles its own ES-modular three internally,
+       so we MUST explicitly load three.js UMD ourselves to get a global. -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#00e1ff"/>
+            <stop offset="100%" stop-color="#ff2bd6"/>
+          </linearGradient>
+        </defs>
+        <path d="M22 18c-5 0-8 4-8 9 0 3 1 5 3 7-2 2-3 4-3 7 0 5 4 9 9 9 2 0 4-1 5-2 1 1 3 2 5 2 5 0 9-4 9-9 0-3-1-5-3-7 2-2 3-4 3-7 0-5-3-9-8-9-2 0-4 1-5 2-1-1-3-2-5-2z"
+              fill="none" stroke="url(#bg)" stroke-width="2.5" stroke-linejoin="round"/>
+        <circle cx="32" cy="32" r="3" fill="url(#bg)"/>
+      </svg>
+      <div class="brand-text">
+        <span class="brand-name">BRAIN</span>
+        <span class="brand-sub">AI HUB</span>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab active" data-view="dashboard">DASHBOARD</button>
+      <button class="tab" data-view="brain">BRAIN</button>
+      <button class="tab" data-view="pipeline">PIPELINE</button>
+      <button class="tab" data-view="tools">TOOLS</button>
+      <button class="tab" data-view="options">OPTIONS</button>
+      <button class="tab" data-view="instrukcja">HELP</button>
+    </nav>
+
+    <div class="meta">
+      <div class="meta-item"><span class="meta-label">MODEL</span><span id="meta-model">-</span></div>
+      <div class="meta-item"><span class="meta-label">UPTIME</span><span id="meta-uptime">-</span></div>
+      <div class="meta-item"><span class="meta-label">TIME</span><span id="meta-time">-</span></div>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <main id="view-dashboard" class="view active">
+    <section class="workflow-ribbon" id="workflow-ribbon">
+      <div class="workflow-head">
+        <span class="workflow-title">🧠 BRAIN AGENT WORKFLOW</span>
+        <span class="workflow-sub">kliknij kafelek → kopiuje prompt → wklej do dowolnego agenta z brain MCP</span>
+        <button class="opt-btn panic-btn" id="panic-btn"
+                title="🚨 Stop ALL: pauzuje scheduler, zabija subprocesy (distill/redistill/rag/codeindex/fcc), unloaduje wszystkie modele z VRAM. Użyj gdy musisz natychmiast oddać GPU/CPU pod inne zadanie.">🚨 PANIC — STOP ALL + FREE GPU</button>
+        <button class="workflow-toggle" id="workflow-toggle" title="zwiń / rozwiń">▾</button>
+      </div>
+      <div class="workflow-grid">
+        <div class="workflow-card" data-step="start">
+          <div class="workflow-step">▶ 1. START SESJI</div>
+          <div class="workflow-desc">Zacznij rozmowę od recall starych notatek</div>
+          <pre class="workflow-prompt" id="wf-prompt-start">Na początku tej sesji:
+1. Wywołaj brain-rag.get_user_profile — przeczytaj mój profil zanim odpiszesz
+2. Wywołaj brain-rag.search_library z tematem rozmowy — pokaż top 5 wyników
+
+Uwaga: ranking brain promuje nowsze i większe notatki — jeśli widzisz notatkę z 2024, sprawdź czy nie ma świeższej wersji.</pre>
+          <button class="opt-btn workflow-copy" data-target="wf-prompt-start">📋 COPY</button>
+        </div>
+        <div class="workflow-card" data-step="work">
+          <div class="workflow-step">💬 2. W TRAKCIE</div>
+          <div class="workflow-desc">Daj agentowi dostęp do brain — nie zgadnie sam</div>
+          <pre class="workflow-prompt" id="wf-prompt-work">Dostępne narzędzia brain — używaj bez pytania:
+• brain-rag.get_user_profile — mój profil (tech, styl, ograniczenia) — czytaj NA STARCIE
+• brain-rag.memory add/replace/remove — aktualizuj mój profil gdy czegoś się uczysz
+• brain-rag.search_library — recall rozmów (vault + library razem)
+• brain-rag.search_library source="library" — tylko z moich książek/PDFów (70+ tytułów)
+• brain-rag.get_skill("nazwa") — wczytaj pełną ekspercką wiedzę (mikrotik-routeros, 09-web-security…)
+• brain-rag.list_cli_skills — lista wszystkich 31 skilli eksperckich
+• brain-rag.search_code — szukaj w moim kodzie
+• brain-rag.run_skill — uruchom workflow LLM (trading-digest, cv-update…)
+• brain-vault.write_file — zapisz notatkę do vault/notes/</pre>
+          <button class="opt-btn workflow-copy" data-target="wf-prompt-work">📋 COPY</button>
+        </div>
+        <div class="workflow-card" data-step="end">
+          <div class="workflow-step">💾 3. ZAPISZ NA KONIEC</div>
+          <div class="workflow-desc">Pojawi się na grafie, inne agenty znajdą</div>
+          <pre class="workflow-prompt" id="wf-prompt-end">Zapisz tę rozmowę do brain używając brain-rag.save_conversation.
+Wyciągnij jako parametry:
+- source: "antigravity" (lub claude-desktop / claude-code / claude-free / cursor / vscode / windsurf / antigravity-cli)
+- topic: krótki tytuł
+- summary: 2-3 zdania
+- decisions: lista konkretnych decyzji
+- solutions: kod / komendy które działają
+- facts: rzeczy nauczone
+- open_questions: pytania do follow-up
+- msg_count: ile było wymian
+Podaj ścieżkę pliku.</pre>
+          <button class="opt-btn workflow-copy" data-target="wf-prompt-end">📋 COPY</button>
+        </div>
+      </div>
+    </section>
+    <div id="grid" class="grid"></div>
+  </main>
+
+  <!-- BRAIN -->
+  <main id="view-brain" class="view">
+    <div class="brain-wrap">
+      <!-- GRAPH (top, hero element) -->
+      <section class="brain-section graph-section">
+        <div class="bsec-head">
+          <h2>KNOWLEDGE GRAPH</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="graph-stats">—</span>
+            <select id="graph-theme" class="opt-btn" style="background:transparent; color:var(--text); border:1px solid rgba(255,255,255,0.1); padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer;">
+              <option value="2d">Theme: 2D Flat</option>
+              <option value="3d">Theme: 3D Synapse 🧠</option>
+              <option value="cosmos">Theme: 3D Cosmos 🌌</option>
+              <option value="mycelium">Theme: 3D Mycelium 🍄</option>
+            </select>
+            <label class="check-toggle">
+              <input type="checkbox" id="graph-show-labels"> labels
+            </label>
+            <label class="check-toggle">
+              <input type="checkbox" id="graph-show-hubs"> hubs
+            </label>
+            <label class="check-toggle" title="Tryb przypinania: przeciągnij hub i zostanie na miejscu. Prawy klik = odepnij.">
+              <input type="checkbox" id="graph-pin-mode"> 📌 pin
+            </label>
+            <button class="opt-btn" id="graph-unpin-all" title="Odepnij wszystkie węzły" style="display:none">UNPIN ALL</button>
+            <button class="opt-btn" id="graph-refresh">REFRESH</button>
+          </div>
+        </div>
+        <div class="graph-wrapper" style="position:relative; width:100%; height:500px; background:#070a13; border-radius:12px; overflow:hidden;">
+          <div id="graph-canvas" style="width:100%; height:100%;">loading…</div>
+          <div id="graph-canvas-3d" style="width:100%; height:100%; display:none;"></div>
+          <div id="graph-legend" class="graph-legend" style="position:absolute; top:12px; left:16px; display:flex; flex-direction:column; gap:6px; pointer-events:none; z-index:10;"></div>
+        </div>
+      </section>
+
+      <!-- VAULT -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>VAULT</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="vault-meta">—</span>
+            <button class="opt-btn" id="vault-open">OPEN FOLDER</button>
+          </div>
+        </div>
+        <div class="vault-controls">
+          <input id="vault-search" type="text" placeholder="szukaj w nazwach plików (Polish + English OK)…">
+          <select id="vault-source">
+            <option value="">wszystkie sources</option>
+            <option value="claude-ai">claude-ai</option>
+            <option value="claude-code">claude-code</option>
+            <option value="grok">grok</option>
+            <option value="antigravity">antigravity</option>
+            <option value="chatgpt">chatgpt</option>
+          </select>
+          <select id="vault-sort">
+            <option value="mtime">⏱ data (najnowsze)</option>
+            <option value="size">📏 rozmiar (największe)</option>
+            <option value="name">📝 nazwa A-Z</option>
+          </select>
+        </div>
+        <div id="vault-body" class="vault-list-container">loading…</div>
+      </section>
+
+      <!-- USER PROFILE — Hermes-style USER.md -->
+      <section class="brain-section" id="user-profile-section">
+        <div class="bsec-head">
+          <h2>USER PROFILE <span style="font-size:10px;color:var(--text-dim);font-weight:400;letter-spacing:1px">· HERMES-STYLE · WSZYSTKIE AGENTY</span></h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="profile-meta">—</span>
+            <button class="opt-btn" id="profile-refresh">REFRESH</button>
+            <button class="opt-btn" id="profile-update-btn" title="Zaktualizuj profil na podstawie ostatnich sesji (Ollama)">🧠 UPDATE FROM SESSIONS</button>
+            <button class="opt-btn" id="profile-save-btn" style="display:none">💾 SAVE</button>
+          </div>
+        </div>
+        <div class="agents-info">
+          Plik <code>vault/USER.md</code> — wstrzykiwany do wszystkich agentów przez brain-rag MCP (<code>get_user_profile</code>).
+          Agenci aktualizują go automatycznie przez <code>brain-rag.memory(add/replace/remove)</code> gdy czegoś się uczą.
+          <strong style="color:var(--accent)">Limit: 2200 znaków</strong> (jak Hermes USER.md).
+        </div>
+        <div id="profile-bar" style="height:4px;border-radius:2px;margin-bottom:12px;background:rgba(255,255,255,0.08);overflow:hidden;">
+          <div id="profile-bar-fill" style="height:100%;background:var(--accent);transition:width 0.3s;width:0%"></div>
+        </div>
+        <textarea id="profile-editor" class="profile-editor" spellcheck="false" placeholder="Profil użytkownika (§-delimitowany)…"></textarea>
+        <div id="profile-status" style="margin-top:6px;font-size:11px;color:var(--text-dim);min-height:18px;"></div>
+      </section>
+
+      <!-- KNOWLEDGE LIFECYCLE / DEDUP -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>KNOWLEDGE LIFECYCLE · DEDUP</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="dedup-meta">—</span>
+            <button class="opt-btn" id="dedup-scan">SCAN</button>
+            <button class="opt-btn" id="dedup-refresh">REFRESH</button>
+          </div>
+        </div>
+        <div id="dedup-body" class="dedup-body">
+          <div class="dedup-empty">Kliknij SCAN żeby znaleźć notatki bliźniacze (cosine + tekst + tytuł).</div>
+        </div>
+      </section>
+
+      <!-- LIBRARY -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>LIBRARY (PDF / EBOOK)</h2>
+          <div class="bsec-actions">
+            <button class="opt-btn" id="lib-open">OPEN FOLDER</button>
+            <button class="opt-btn" id="lib-reindex" disabled title="RAG pipeline pending">REINDEX</button>
+          </div>
+        </div>
+        <div id="lib-body" class="lib-body">loading…</div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- PIPELINE -->
+  <main id="view-pipeline" class="view">
+    <div class="tools-wrap">
+
+      <!-- TRANSCRIPT DISTILLATION -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>TRANSCRIPT DISTILLATION</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="distill-state">idle</span>
+          </div>
+        </div>
+        <div class="distill-wrap">
+          <div id="distill-sources" class="distill-sources">loading sources…</div>
+          <div class="distill-controls">
+            <label>Model
+              <select id="distill-model"></select>
+            </label>
+            <label>Limit
+              <input id="distill-limit" type="number" min="1" placeholder="all">
+            </label>
+            <button class="opt-btn" id="distill-collect">COLLECT</button>
+            <button class="opt-btn" id="distill-run">RUN ALL</button>
+            <button class="opt-btn test" id="distill-stop">STOP</button>
+          </div>
+          <div id="distill-progress" class="distill-progress"></div>
+        </div>
+      </section>
+
+      <!-- VAULT RE-DISTILLATION -->
+      <section class="brain-section" id="redistill-panel">
+        <div class="bsec-head">
+          <h2>VAULT RE-DISTILLATION (NOTE QUALITY)</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="redistill-state">idle</span>
+          </div>
+        </div>
+        <div class="distill-wrap">
+          <div class="distill-sources">
+            Automatyczna naprawa najsłabszych notatek (zbyt krótkich lub uszkodzonych "## _Stub_") przy użyciu lepszego modelu LLM.
+            <strong id="redistill-info-text">Przerabia <span id="redistill-info-count">...</span> notatek z dashboardowej karty "NOTE QUALITY"</strong>.
+          </div>
+          <div class="distill-controls">
+            <label>Model
+              <select id="redistill-model">
+                <option value="qwen2.5:14b">qwen2.5:14b (Lokalny, Dokładny)</option>
+                <option value="qwen2.5:7b">qwen2.5:7b (Lokalny, Szybszy)</option>
+                <option value="claude-haiku">Claude Haiku (Cloud API - Błyskawiczny)</option>
+              </select>
+            </label>
+            <label>Limit
+              <input id="redistill-limit" type="number" min="1" value="50" placeholder="50">
+            </label>
+            <button class="opt-btn" id="redistill-run">RUN BATCH</button>
+            <button class="opt-btn test" id="redistill-stop">STOP</button>
+          </div>
+          <div id="redistill-progress" class="distill-progress"></div>
+        </div>
+      </section>
+
+      <!-- CODE INDEX -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>CODE INDEX · RAG OVER YOUR PROJECTS</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="code-meta">—</span>
+            <button class="opt-btn" id="code-scan">SCAN ALL</button>
+            <button class="opt-btn" id="code-refresh">REFRESH</button>
+          </div>
+        </div>
+        <div class="code-watches-add">
+          <input id="code-watch-input" type="text"
+            placeholder="C:\Users\you\projects\my-repo  — wklej ścieżkę i ENTER">
+          <button class="opt-btn" id="code-watch-add">+ ADD PATH</button>
+        </div>
+        <div id="code-watches-list" class="code-watches-list">loading…</div>
+        <div id="code-search-wrap" class="code-search-wrap">
+          <input id="code-search-input" type="text" placeholder="zapytanie semantyczne — np. 'function that parses jsonl'">
+          <button class="opt-btn" id="code-search-btn">SEARCH</button>
+        </div>
+        <div id="code-results" class="code-results hidden"></div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- TOOLS -->
+  <main id="view-tools" class="view">
+    <div class="tools-wrap">
+      <!-- AGENTS / MCP DEPLOY — top of TOOLS -->
+      <section class="brain-section" id="agents-panel">
+        <div class="bsec-head">
+          <h2>AGENTS · MCP DEPLOY</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="agents-meta">—</span>
+            <button class="opt-btn" id="agents-deploy-all">▶ DEPLOY TO ALL INSTALLED</button>
+            <button class="opt-btn" id="agents-refresh">REFRESH</button>
+          </div>
+        </div>
+        <div class="agents-info">
+          One-click deploy brain MCP do wszystkich wykrytych agentów (Claude Desktop, Antigravity, Claude Code, Cursor, Windsurf).
+          <strong>Wpinają się 3 serwery</strong>: brain-vault (pliki vault), brain-library (PDF/EPUB), brain-rag (semantic search + skills + code index).
+          Twoje istniejące inne MCP serwery są zachowane.
+        </div>
+        <div id="agents-list" class="agents-list">loading…</div>
+      </section>
+
+
+
+      <!-- CLI SKILLS — pierwsza bo ważniejsza, Claude FleetView ma do nich dostęp przez Skill tool -->
+      <section class="brain-section" id="cli-skills-section">
+        <div class="bsec-head" style="cursor: pointer;" onclick="document.getElementById('cli-skills-section').classList.toggle('collapsed')">
+          <h2>CLI SKILLS — CLAUDE CODE INJECTIONS</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="cli-skills-meta">—</span>
+            <button class="opt-btn" id="cli-skills-refresh" onclick="event.stopPropagation()">REFRESH</button>
+            <button class="opt-btn" id="cli-skills-open" onclick="event.stopPropagation()">OPEN FOLDER</button>
+          </div>
+        </div>
+        <div class="agents-info">
+          Pliki <code>SKILL.md</code> z <code>~/.claude/skills/</code> — <strong style="color:var(--accent)">auto-dostępne jako <code>/slash-commands</code></strong> w każdej sesji terminala <code>claude</code>.
+          Pozostałe agenty (Cursor, Desktop, Antigravity) mają dostęp przez <code>brain-rag.get_skill("nazwa")</code> i <code>brain-rag.list_cli_skills</code>.
+          <span style="color:#ff8844">⚠ Zapis tylko ręcznie</span> — brain-vault MCP nie ma dostępu do <code>~/.claude/</code>.
+        </div>
+        <div id="cli-skills-list" class="skills-list">loading…</div>
+      </section>
+
+      <!-- AGENTIC SKILLS — brain/skills/, dostępne przez brain-rag.run_skill + Claude może tu pisać -->
+      <section class="brain-section collapsed" id="agentic-skills-section">
+        <div class="bsec-head" style="cursor: pointer;" onclick="document.getElementById('agentic-skills-section').classList.toggle('collapsed')">
+          <h2>AGENTIC SKILLS — BRAIN WORKFLOWS</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="skills-meta">—</span>
+            <button class="opt-btn" id="skills-refresh" onclick="event.stopPropagation()">REFRESH</button>
+            <button class="opt-btn" id="skills-open" onclick="event.stopPropagation()">OPEN FOLDER</button>
+          </div>
+        </div>
+        <div class="agents-info">
+          Pliki <code>.md</code> z <code>~/brain/skills/</code> — uruchamiane przez <code>brain-rag.run_skill</code> (RAG + LLM, wynik do <code>vault/digests/</code>).
+          <strong style="color:var(--accent)">Tu Claude Code agent może pisać</strong> przez brain-vault MCP.
+          <span style="color:#88cc44">CLI agent NIE ładuje tych skilli automatycznie.</span>
+        </div>
+        <div id="skills-list" class="skills-list">loading…</div>
+        <div id="skills-output" class="skills-output hidden"></div>
+      </section>
+
+      <!-- SCHEDULER -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>AUTO SCHEDULE · BACKGROUND WORKER</h2>
+          <div class="bsec-actions">
+            <span class="bsec-meta" id="sched-meta">—</span>
+            <button class="opt-btn" id="sched-refresh">REFRESH</button>
+          </div>
+        </div>
+        <div class="sched-info" id="sched-info">loading…</div>
+        <div id="sched-advice" class="sched-advice"></div>
+        <div id="sched-list" class="sched-list"></div>
+        <details class="sched-log-wrap">
+          <summary>Historia ostatnich uruchomień</summary>
+          <div id="sched-log" class="sched-log">—</div>
+        </details>
+      </section>
+
+      <!-- MCP -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>MCP SERVERS</h2>
+          <div class="bsec-actions">
+            <button class="opt-btn" id="mcp-add">+ ADD SERVER</button>
+          </div>
+        </div>
+        <div id="mcp-list" class="mcp-list">loading…</div>
+        <div id="mcp-form" class="mcp-form hidden">
+          <h3>New MCP server</h3>
+          <label>ID <input id="mcp-f-id" placeholder="unique-id"></label>
+          <label>Title <input id="mcp-f-title" placeholder="Obsidian Vault"></label>
+          <label>Command <input id="mcp-f-cmd" placeholder="npx"></label>
+          <label>Args (one per line)
+            <textarea id="mcp-f-args" rows="3" placeholder="-y&#10;@modelcontextprotocol/server-filesystem&#10;<brain>/data/vault"></textarea>
+          </label>
+          <label>Env (KEY=VALUE per line)
+            <textarea id="mcp-f-env" rows="2"></textarea>
+          </label>
+          <div class="form-actions">
+            <button class="opt-btn" id="mcp-f-cancel">CANCEL</button>
+            <button class="opt-btn" id="mcp-f-save">SAVE</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- LOGS -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>LOGS</h2>
+          <div class="bsec-actions">
+            <select id="logs-picker"></select>
+            <label class="checkbox"><input type="checkbox" id="logs-auto" checked> auto</label>
+            <button class="opt-btn" id="logs-refresh">REFRESH</button>
+            <button class="opt-btn test" id="logs-clear">CLEAR</button>
+          </div>
+        </div>
+        <pre id="logs-body" class="logs-body">pick a log…</pre>
+      </section>
+
+      <!-- BACKUP -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>BACKUP</h2>
+          <div class="bsec-actions">
+            <label class="checkbox"><input type="checkbox" id="bk-include-keys"> include keys</label>
+            <label class="checkbox"><input type="checkbox" id="bk-include-distilled" checked> include distilled</label>
+            <button class="opt-btn" id="bk-create">CREATE BACKUP</button>
+          </div>
+        </div>
+        <p class="opt-hint" style="font-size:11px;margin-bottom:10px">
+          ZIP-uje vault + dashboard + pipeline + config. Pomija modele Ollamy (~20 GB), bin/, logs/, brain-raw/.<br>
+          Klucze API i historię użycia pomija domyślnie — zaznacz "include keys" tylko jeśli wiesz co robisz.
+        </p>
+        <div id="bk-list" class="mcp-list">loading…</div>
+      </section>
+
+      <!-- IDLE GUARD -->
+      <section class="brain-section">
+        <div class="bsec-head">
+          <h2>IDLE GUARD (AUTO-UNLOAD VRAM)</h2>
+          <div class="bsec-actions">
+            <span id="idle-state" class="bsec-meta">checking…</span>
+            <button class="opt-btn" id="idle-unload-now">UNLOAD NOW</button>
+          </div>
+        </div>
+        <p class="opt-hint" style="font-size:11px;margin-bottom:12px">
+          Ollama domyślnie trzyma modele w VRAM przez 5-30 min po użyciu, żeby kolejny request był instant.
+          Włącz auto-unload żeby po N minutach bez aktywności (chat / proxy) modele zostały wyrzucone z VRAM.
+          Nie wpływa na to co siedzi w katalogu modeli — tylko na to co RAM-uje GPU.
+        </p>
+        <div class="idle-controls">
+          <label class="idle-toggle-wrap">
+            <span>AUTO-UNLOAD</span>
+            <div class="opt-toggle" id="idle-toggle" data-role="toggle"></div>
+          </label>
+          <label class="idle-min-wrap">
+            <span>IDLE MINUTES</span>
+            <input type="number" min="1" max="120" id="idle-min" value="10">
+          </label>
+          <button class="opt-btn" id="idle-save">SAVE</button>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- INSTRUKCJA -->
+  <main id="view-instrukcja" class="view">
+    <button id="ins-top" class="ins-top" title="back to top" aria-label="back to top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>
+    </button>
+    <div class="ins-wrap">
+      <aside class="ins-nav">
+        <a href="#i-what"   data-anchor="i-what">CZYM JEST BRAIN</a>
+        <a href="#i-ask"    data-anchor="i-ask">⭐ JAK PYTAĆ BRAIN</a>
+        <a href="#i-start"  data-anchor="i-start">SZYBKI START</a>
+        <a href="#i-dash"   data-anchor="i-dash">DASHBOARD</a>
+        <a href="#i-brain"  data-anchor="i-brain">BRAIN</a>
+        <a href="#i-tools"  data-anchor="i-tools">TOOLS</a>
+        <a href="#i-opt"    data-anchor="i-opt">OPTIONS</a>
+        <a href="#i-chat"   data-anchor="i-chat">CHAT WIDGET</a>
+        <a href="#i-agents" data-anchor="i-agents">⚡ MCP DEPLOY (TOOLS)</a>
+        <a href="#i-portable" data-anchor="i-portable">PORTABLE — NOWY KOMPUTER</a>
+        <a href="#i-mcp"    data-anchor="i-mcp">MCP — DODAWANIE</a>
+        <a href="#i-proxy"  data-anchor="i-proxy">LOKALNY PROXY</a>
+        <a href="#i-skills" data-anchor="i-skills">SKILLS / CLI SKILLE</a>
+        <a href="#i-dist"   data-anchor="i-dist">DESTYLACJA TRANSKRYPTÓW</a>
+        <a href="#i-rag"    data-anchor="i-rag">RAG / LIBRARY</a>
+        <a href="#i-import" data-anchor="i-import">IMPORT KONTEKSTU (GEMINI)</a>
+        <a href="#i-sched"  data-anchor="i-sched">AUTO SCHEDULE (tła)</a>
+        <a href="#i-idle"   data-anchor="i-idle">IDLE GUARD / VRAM</a>
+        <a href="#i-back"   data-anchor="i-back">BACKUP</a>
+        <a href="#i-trouble" data-anchor="i-trouble">TROUBLESHOOTING</a>
+      </aside>
+
+      <div class="ins-content">
+
+        <section id="i-what" class="ins-section">
+          <h2>CZYM JEST BRAIN</h2>
+          <p><strong>Brain to portable AI hub w jednym katalogu.</strong> Ma trzy ortogonalne role:</p>
+          <ol>
+            <li><strong>Lokalny LLM</strong> — Ollama z modelami (qwen2.5, gemma3, embed). Działa offline na Twoim GPU (Vulkan/ROCm dla AMD). Czat przez widget bottom-right albo bezpośrednio przez <code>http://127.0.0.1:11434/v1</code> (OpenAI-compatible).</li>
+            <li><strong>Magazyn wiedzy</strong> — vault (markdown notatki) + library (PDF/EPUB/MOBI/DOCX/TXT) + semantic search via RAG (embed + sqlite-vec). Wszystko lokalnie, bez chmury.</li>
+            <li><strong>Most do innych asystentów</strong> — przez MCP (serwery <code>brain-vault</code>, <code>brain-library</code>, <code>brain-rag</code>) wpinają się Claude Desktop, Claude Code, Cursor — dają im dostęp do Twojej wiedzy. Plus lokalny proxy do API providerów: jeden klucz w jednym miejscu zamiast w każdym narzędziu.</li>
+          </ol>
+
+          <h3>Co robi a czego nie</h3>
+          <table class="ins-table">
+            <tr><th>Robi</th><th>Nie robi</th></tr>
+            <tr>
+              <td>Czat z lokalnym LLM na Twoim GPU<br>Search semantyczny po Twoich książkach i rozmowach<br>Destylację historii rozmów do faktów<br>Udostępnianie kontekstu LLM-om przez MCP<br>Proxy + tracking użycia chmurowych API<br>Auto-schedule ciężkich tasków w tle gdy idle</td>
+              <td>Nie syncuje się z chmurą (Twoje dane = Twoje)<br>Nie auth-uje się do API web (Claude.ai, ChatGPT.com)<br>Nie zastępuje IDE/edytora — vault edytuj w Obsidian<br>Nie szyfruje plików (zwykły dysk)<br>Nie ma multi-user (single laptop)<br>Nie jest SaaS — zero subskrypcji, zero vendor lock-in</td>
+            </tr>
+          </table>
+
+          <h3>Stos technologiczny</h3>
+          <table class="ins-table">
+            <thead><tr><th>Warstwa</th><th>Technologia</th><th>Dlaczego ta, a nie inna</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><strong>LLM runtime</strong></td>
+                <td><code>Ollama</code></td>
+                <td>Jedyne rozwiązanie z pełnym wsparciem AMD (ROCm/Vulkan) bez kompilowania. OpenAI-compatible HTTP API out of box — każdy tool który zna GPT-4, zna też Ollamę bez zmian w kodzie. Automatyczny model management (pull, delete, VRAM TTL). Alternatywa llama.cpp = tylko binary, zero HTTP, brak auto-reload.</td>
+              </tr>
+              <tr>
+                <td><strong>Embed model</strong></td>
+                <td><code>nomic-embed-text</code> (768 dim)</td>
+                <td>Open weights, działa lokalnie na GPU. Dobra jakość dla technicznego tekstu po polsku i angielsku. 768 dim = kompromis (OpenAI ada-002 ma 1536 ale wysyła dane do chmury i kosztuje). Alternatywa: <code>bge-m3</code> (lepsza wielojęzyczna, ale 2× wolniejsza).</td>
+              </tr>
+              <tr>
+                <td><strong>Vector DB</strong></td>
+                <td><code>sqlite-vec</code></td>
+                <td>Zero infrastruktury. Jeden plik <code>.db</code> — nie ma procesu do uruchamiania, nie ma portu, nie ma Dockera. Chroma, Qdrant, Weaviate to osobne serwery z ich własnymi crashami. Dla osobistej bazy (&lt;5M wektorów) sqlite-vec jest niewykrywalnie wolniejszy. Można backupować jak zwykły plik.</td>
+              </tr>
+              <tr>
+                <td><strong>Destylacja LLM</strong></td>
+                <td><code>qwen2.5:14b</code></td>
+                <td>Najlepszy stosunek jakości do VRAM na 14B. Kluczowe: niezawodnie zwraca poprawny JSON nawet przy długich transkryptach — inne modele tej klasy (Mistral, Llama 3.1) ślimaczyły strukturę wyjścia. Działa lokalnie, dane nie wychodzą. qwen2.5:3b = ~3× szybszy ale gubi kontekst przy dłuższych sesjach.</td>
+              </tr>
+              <tr>
+                <td><strong>Dashboard backend</strong></td>
+                <td><code>FastAPI + uvicorn</code></td>
+                <td>Async Python z natywnym streamingiem (SSE/ndjson) — kluczowe dla chat widget i live progress bars. Auto-generuje OpenAPI docs. Flask = sync, brak natywnego streamingu. Django = 10× więcej kodu dla prostego API.</td>
+              </tr>
+              <tr>
+                <td><strong>Knowledge graph</strong></td>
+                <td><code>D3.js force-simulation + Canvas 2D</code></td>
+                <td>SVG nie daje rady powyżej ~200 węzłów (re-render całego DOM przy każdym ticku fizyki). Canvas 2D = 1660+ węzłów w 60 fps bez problemu — rysuje piksele, nie elementy. Three.js byłby overkill (WebGL, 3D API) dla 2D grafu. D3 force = sprawdzona fizyka z repulsion/attraction, nie trzeba pisać integratora.</td>
+              </tr>
+              <tr>
+                <td><strong>MCP (komunikacja z agentami)</strong></td>
+                <td>Anthropic MCP protocol</td>
+                <td>Standard który wszystkie liczące się narzędzia AI już przyjęły: Claude Desktop, Claude Code, Cursor, Windsurf, Continue.dev. Alternatywa: własne REST API = każdy agent wymaga custom integration. MCP = jedno API, działające wszędzie. Brain wystawia 3 MCP servery przez stdio (brain-vault, brain-library, brain-rag).</td>
+              </tr>
+              <tr>
+                <td><strong>Edytor vault</strong></td>
+                <td><code>Obsidian</code> (zewnętrzny)</td>
+                <td>Vault to plain markdown na dysku — Obsidian otwiera folder bezpośrednio (File → Open Vault → <code>brain/data/vault</code>). Wikilinki <code>[[nota]]</code> które Obsidian tworzy automatycznie są czytane przez brain do budowania grafu. Alternatywy: Logseq (niekompatybilne linki), Notion (cloud, proprietarny format), Typora (brak grafu/pluginów). Dashboard VAULT tab to tylko podgląd — nie zastępuje edytora, bo markdown potrzebuje prawdziwego UI.</td>
+              </tr>
+              <tr>
+                <td><strong>Własny RAG vs framework</strong></td>
+                <td>~400 linii Python (<code>rag.py</code>)</td>
+                <td>LangChain i LlamaIndex to frameworki które abstrakcjonizują na tyle, że debugowanie jest trudniejsze niż napisanie od nowa. Brain RAG robi dokładnie to co trzeba: chunk → embed → sqlite-vec → hybrid search (semantic + keyword boost). Zero magic, zero ukrytych retry loops, każdy krok logowalny. Zysk z frameworka: zero. Koszt: 100+ MB dependencies + wersjonowanie piekło.</td>
+              </tr>
+              <tr>
+                <td><strong>Python runtime</strong></td>
+                <td>Portable Python w <code>bin/python/</code></td>
+                <td>Kopiujesz <code>brain/</code> na nowy komputer — Python jest wewnątrz. Nie musisz instalować nic globalnie, nie ma konfliktów z systemowym Pythonem, nie ma venv aktywowania. Cena: ~60 MB extra w folderze. Warto.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Dlaczego nie Hermes / inne gotowe agenty</h3>
+          <p>Hermes, AutoGPT, AgentGPT i podobne to agenty zorientowane na <em>wykonywanie zadań</em> — dostają cel, próbują go osiągnąć w pętli tool-use. Brain to co innego: <strong>osobista baza wiedzy</strong> która <em>wzmacnia</em> agenty których używasz na co dzień. Nie zastępuje Claude Code czy Antigravity — daje im Twoją wiedzę przez MCP. Różnica filozoficzna: Hermes-style = jeden wielki agent który wszystko robi. Brain = warstwa wiedzy + lokalny LLM + integracja z wieloma narzędziami. Możesz używać obu naraz (i powinieneś).</p>
+
+          <h3>Stan na teraz</h3>
+          <p>Dashboard ma 6 zakładek: <strong>DASHBOARD</strong> (status live), <strong>BRAIN</strong> (vault browser / knowledge graph / library / dedup), <strong>PIPELINE</strong> (distylacja / code-index / skills), <strong>TOOLS</strong> (agents / mcp / logs / backup / scheduler / idle-guard), <strong>OPTIONS</strong> (klucze API), <strong>HELP</strong> (ta). Tray icon w pasku Windows. Procesy: Ollama + dashboard (uvicorn) + tray. Knowledge graph: 1660+ węzłów z 1660+ krawędzi, interaktywny canvas z pin mode.</p>
+
+          <h3>Filozofia</h3>
+          <p>Jeden katalog → jeden ZIP backup. Wszystko portable. Modele LLM ważą najwięcej (~10–20 GB), reszta to drobne. Możesz przenieść <code>brain/</code> na inny komputer, odpalić <code>start.cmd</code> i działa (przy założeniu Windows 11 + AMD lub NV GPU + Node.js dla MCP). <strong>Twoje dane nie opuszczają Twojego dysku.</strong> Żadna firma nie wie czego szukasz, co pamiętasz, z jakimi problemami się zmagasz.</p>
+        </section>
+
+        <section id="i-ask" class="ins-section">
+          <h2>⭐ JAK PYTAĆ BRAIN — KONKRETNE PROMPTY</h2>
+          <p>Brain udostępnia <strong>4 serwery MCP</strong> dla Claude Desktop / Claude Code / Cursor. Każdy do innego celu. Kopiuj-wklej poniższe prompty.</p>
+
+          <h3>🧠 brain-rag — SEMANTIC SEARCH (najważniejszy)</h3>
+          <p>Hybrid search (embedding + keyword) po <strong>1659+ notatkach</strong> z Twoich rozmów AI + PDF-ach. Nie pamiętasz tytułu? Tu pytasz.</p>
+          <pre>Użyj brain-rag.search_library żeby znaleźć moje notatki o
+"konfiguracja WireGuard MikroTik". Pokaż top 3 wyniki z cytatami.</pre>
+          <pre>brain-rag: znajdź wszystko co rozmawiałem o trading pinescript
+indicator. Podsumuj decyzje i działające rozwiązania.</pre>
+          <pre>Sprawdź w brain-rag.library_status ile mam notatek, potem
+search_library "cv praca" — podsumuj 3 najistotniejsze rozmowy
+o szukaniu pracy / CV.</pre>
+          <h4>Co zwraca</h4>
+          <ul>
+            <li>Score (im wyższy tym lepsze dopasowanie — &gt;0.5 świetne, 0.1-0.3 słabe, &lt;0.1 random)</li>
+            <li>Nazwa pliku + numer strony</li>
+            <li>Fragment treści (~300 znaków)</li>
+            <li>Powyżej 0.7 znaczy: keyword w nazwie pliku + match semantic</li>
+          </ul>
+
+          <h3>📁 brain-vault — FILESYSTEM (grep / read)</h3>
+          <p>Dostęp do <code>data/vault/*.md</code>. Gdy znasz słowo z nazwy lub chcesz przeczytać konkretną notatkę.</p>
+          <pre>brain-vault: wymień ostatnie 10 plików w distilled/ posortowane
+po dacie. Z każdego pokaż mi pierwsze 5 linii.</pre>
+          <pre>brain-vault.search_files pattern="*MikroTik*" — wymień wszystkie
+pliki z MikroTik w nazwie.</pre>
+          <pre>brain-vault.read_text_file path="distilled/2025-12-15_claude-ai_
+Tunel_WireGuard_między_Mikrotik_a_UDM_Un_0883cd57.md" — przeczytaj
+pełną treść tej notatki.</pre>
+
+          <h3>📚 brain-library — PDF / EBOOK</h3>
+          <p>Dostęp do <code>data/library/</code> (książki, dokumenty). Filesystem-style (list/read).</p>
+          <pre>brain-library: wymień wszystkie pliki, podaj nazwy + rozmiary.</pre>
+          <pre>Czy mam w brain-library coś o Bitcoin / blockchain?
+Wymień + opisz krótko każdy plik.</pre>
+
+          <h3>💻 brain-rag.search_code — RAG NAD TWOIM KODEM</h3>
+          <p>Osobny vector index nad source-code z folderów które wskażesz (TOOLS → CODE INDEX → ADD PATH).
+          Działa jak <code>search_library</code> ale tylko po Twoich repozytoriach.
+          Wyciąga też symbole (funkcje, klasy) regex-em — działa dla Python/JS/TS/Rust/Go/Java/C/Pine/RouterOS/PowerShell.</p>
+          <pre>brain-rag.search_code query="parser jsonl claude code" — pokaż top 5</pre>
+          <pre>Szukam funkcji która parsowała Pine Script.
+brain-rag.search_code query="pine script parser indicator" lang=".pine"</pre>
+          <pre>brain-rag.code_status — pokaż które katalogi są zaindeksowane
+i ile plików w każdym języku.</pre>
+          <h4>Setup</h4>
+          <ol>
+            <li>PIPELINE → CODE INDEX → wklej ścieżkę katalogu projektu</li>
+            <li>SCAN ALL — pierwszy scan ~1-2 min na 100 plików (embed przez Ollama)</li>
+            <li>Pyta przez Claude Desktop / Antigravity przez <code>search_code</code></li>
+          </ol>
+
+          <h3>💾 brain-rag.save_conversation — ZAPISZ ROZMOWĘ DO BRAIN</h3>
+          <p>To <strong>kluczowe</strong> dla agentów których brain NIE auto-importuje (Antigravity, Claude Desktop, Cursor, VS Code).
+          Plik trafia do <code>vault/sessions/</code> i pojawia się na knowledge graph w ciągu 30s.</p>
+
+          <h4>Magiczny prompt do skopiowania (działa w każdym agencie z brain-rag MCP)</h4>
+          <pre>Zapisz tę rozmowę do brain używając brain-rag.save_conversation.
+Wyciągnij i podaj jako parametry:
+- source: "antigravity"  (lub claude-desktop / cursor / vscode)
+- topic: krótki tytuł (np. "Pine Script FVG strategy debugging")
+- summary: 2-3 zdania o czym była rozmowa
+- decisions: lista konkretnych decyzji jakie podjęliśmy
+- solutions: kod / komendy / rozwiązania które działają
+- facts: rzeczy których się nauczyłem
+- open_questions: pytania bez odpowiedzi do późniejszego sprawdzenia
+- msg_count: ile było mniej więcej wymian
+
+Potem podaj mi ścieżkę pliku który zapisałeś.</pre>
+
+          <h4>Wynikowy plik</h4>
+          <p>Trafi do <code>vault/sessions/YYYY-MM-DD_&lt;source&gt;_&lt;topic&gt;_HH-MM.md</code> z YAML frontmatter który brain rozumie.
+          Graf pokaże go jako <strong>nowy node</strong> w klastrze odpowiadającym źródłu (antigravity = zielony hub, cursor = żółty itd).</p>
+
+          <h4>Workflow który polecam</h4>
+          <ol>
+            <li>Pracujesz w Antigravity / Claude / Cursor przez 30 min</li>
+            <li>Na koniec sesji wklejasz powyższy prompt</li>
+            <li>Agent generuje strukturę i wywołuje narzędzie</li>
+            <li>Sprawdzasz na grafie (BRAIN tab) — nowy bąbelek pojawia się w klastrze tego źródła</li>
+            <li>Po reindexie (~30s) możesz w innym agencie wpisać <code>brain-rag.search_library "topic"</code> i dostać tę notatkę</li>
+          </ol>
+
+          <h3>⚡ brain-rag.run_skill — AGENTIC WORKFLOWS</h3>
+          <p>Brain ma <strong>skille</strong> (claude-os style, bez Redisa) — gotowe workflow w <code>brain/skills/*.md</code>.
+          Każdy automatycznie zbiera kontekst (RAG + vault), woła model i zapisuje wynik do <code>vault/digests/</code>.
+          Wywołanie z dashboardu: <strong>TOOLS → SKILLS → ▶ RUN</strong>. Z Claude Desktop / Antigravity:</p>
+          <pre>Użyj brain-rag.run_skill name="trading-digest".
+Pokaż mi wynik + jakie pliki zostały zacytowane.</pre>
+          <pre>brain-rag.list_skills — pokaż wszystkie dostępne skille.
+Potem wywołaj cv-update i pokaż output.</pre>
+          <pre>Wywołaj brain-rag.run_skill z parametrami:
+name = mikrotik-config
+inputs = { "query": "MikroTik WireGuard VPN setup" }
+Streszcz wynik w 3 punktach.</pre>
+          <h4>5 startowych skilli</h4>
+          <ul>
+            <li><code>inbox-process</code> — status inboxa, czy warto teraz destylować</li>
+            <li><code>dedupe-vault</code> — przewodnik po dedup workflow</li>
+            <li><code>trading-digest</code> — agreguje notatki o tradingu, wyciąga setupy + indikatory + decyzje, anty-bullshit check</li>
+            <li><code>cv-update</code> — porównuje aktualne CV z nowymi projektami w vault, sugeruje bullety</li>
+            <li><code>mikrotik-config</code> — playbook RouterOS z komendami które user faktycznie testował</li>
+          </ul>
+          <p>Dodaj własny skill: wrzuć plik <code>my-skill.md</code> do <code>brain/skills/</code> z YAML front-matter
+          (<code>name</code>, <code>description</code>, <code>model</code>, <code>context</code>, <code>outputs</code>) — zostanie wykryty automatycznie.</p>
+
+          <h3>🔗 CROSS-MCP — łączone pytania (potężne)</h3>
+          <p>Najlepsze użycie: prosisz Claude o połączenie wiedzy z plikami.</p>
+          <pre>Mam problem z konfiguracją MikroTik. Najpierw użyj brain-rag
+żeby znaleźć moje wcześniejsze rozmowy o "MikroTik firewall NAT
+WireGuard". Potem podsumuj rozwiązania które działały, plus podaj
+konkretne komendy RouterOS.</pre>
+          <pre>brain-rag: znajdź moje notatki o "destylacja transkryptów pipeline"
+brain-vault: przeczytaj pełną treść najwyżej-scorowanej notatki
+Zaproponuj 3 ulepszenia na podstawie czego się dowiedziałeś.</pre>
+          <pre>brain-vault: wymień ostatnie 20 plików w distilled/ (sortuj po dacie).
+Z każdego pokaż pierwsze 5 linii. Wybierz 3 najciekawsze
+i podaj ich pełną treść.</pre>
+
+          <h3>📅 Po datach / źródłach</h3>
+          <pre>brain-vault: wymień pliki z distilled/ z datą 2025-12*
+posortowane od najnowszej. Co tam jest?</pre>
+          <pre>brain-rag: znajdź moje rozmowy z Grok'iem o "trading"
+(filename ma prefix _grok_)</pre>
+
+          <h3>🎯 Bootstrap context — "kim jestem" dla nowego AI</h3>
+          <p>Gdy zaczynasz nową rozmowę z innym LLM-em i chcesz mu dać background:</p>
+          <pre>Przeczytaj 10 ostatnich notatek z brain-vault/distilled/
+(brain-vault.list_directory_with_sizes posortuj po mtime).
+Podsumuj kim jestem, czym się zajmuję i jakie mam aktywne projekty,
+używając tylko faktów z notatek.</pre>
+
+          <h3>⚠️ Czego NIE robić</h3>
+          <table class="ins-table">
+            <tr><th>Antywzorzec</th><th>Dlaczego źle</th></tr>
+            <tr>
+              <td>"Powiedz mi o wszystkim co wiesz o X"</td>
+              <td>Claude bez search_library zwróci wiedzę pretrenowaną. Wymuś użycie MCP.</td>
+            </tr>
+            <tr>
+              <td>"Search dla 'a' lub 'i' lub 'jest'"</td>
+              <td>Stopwords + 1-znakowe są filtrowane. Daj sensowne słowa-klucze.</td>
+            </tr>
+            <tr>
+              <td>"Pokaż wszystko o X" gdy score &lt; 0.1</td>
+              <td>Random hits. Lepiej powiedzieć Claude: "jeśli najlepszy score &lt; 0.2, powiedz że brak danych".</td>
+            </tr>
+          </table>
+
+          <h3>🔑 Czy MCP się odświeża</h3>
+          <ul>
+            <li><strong>rag.py</strong> — hot reload przy każdym <code>search_library</code> (zmiany kodu wchodzą natychmiast)</li>
+            <li><strong>brain-vault / brain-library</strong> — filesystem zawsze aktualny (czytają dysk live)</li>
+            <li><strong>code index (brain-rag)</strong> — przebudowuje się po PIPELINE → CODE INDEX → SCAN ALL, albo automatycznie przez OS file watchers przy zmianach w śledzonych folderach</li>
+            <li><strong>Lista MCP serverów</strong> — wymaga restartu Claude Desktop (zamknij Quit z tray + otwórz ponownie)</li>
+          </ul>
+        </section>
+
+        <section id="i-start" class="ins-section">
+          <h2>SZYBKI START</h2>
+          <p>Brain to <strong>portable AI hub</strong> w jednym katalogu (<code><brain>\</code>). Wszystko co potrzebne: lokalny LLM (Ollama), dashboard, pipeline destylacji, integracja MCP.</p>
+          <h3>Uruchomienie</h3>
+          <pre><brain>\start.cmd</pre>
+          <p>Otwiera dashboard w przeglądarce, uruchamia 3 procesy: Ollama (LLM), uvicorn (dashboard), tray (ikona w pasku Windows).</p>
+          <h3>Zatrzymanie</h3>
+          <pre><brain>\stop.cmd</pre>
+          <p>Lub tray-icon prawym → "Stop All".</p>
+          <h3>URL-e</h3>
+          <table class="ins-table">
+            <tr><td>Dashboard</td><td><a href="http://127.0.0.1:7860" target="_blank">http://127.0.0.1:7860</a></td></tr>
+            <tr><td>Ollama API</td><td><a href="http://127.0.0.1:11434" target="_blank">http://127.0.0.1:11434</a></td></tr>
+            <tr><td>Lokalny proxy</td><td><code>http://127.0.0.1:7860/proxy/&lt;provider&gt;/...</code></td></tr>
+          </table>
+          <h3>Ścieżki</h3>
+          <table class="ins-table">
+            <tr><td>Vault (notatki)</td><td><code>data\vault\</code></td></tr>
+            <tr><td>Biblioteka PDF</td><td><code>data\library\</code></td></tr>
+            <tr><td>Modele Ollamy</td><td><code>data\ollama-models\</code></td></tr>
+            <tr><td>Klucze API</td><td><code>data\api-keys.json</code> ⚠ plaintext</td></tr>
+            <tr><td>MCP config</td><td><code>pipeline\mcp-servers.json</code></td></tr>
+            <tr><td>Backupy</td><td><code>data\backups\</code></td></tr>
+            <tr><td>Logi</td><td><code>logs\</code></td></tr>
+          </table>
+        </section>
+
+        <section id="i-dash" class="ins-section">
+          <h2>ZAKŁADKA DASHBOARD</h2>
+          <p>Status na żywo całego stacku — siatka kafelków, odświeża się co 3 sekundy.</p>
+          <h3>Kafelki</h3>
+          <table class="ins-table">
+            <tr><td><strong>OLLAMA</strong></td><td>Liczba pobranych modeli + lista. Dropdown <em>active model</em> ustawia model dla chat widget. Input <em>pull</em> + przycisk PULL = pobiera nowy model w tle (progress bar live).</td></tr>
+            <tr><td><strong>GPU</strong> (wide)</td><td>Karta + paski VRAM / UTIL / TEMP. Źródło danych: <code>rocm-smi</code> (AMD+HIP) → <code>nvidia-smi</code> (NV) → Windows PerfCounter (fallback). Temp = 0 jeśli brak rocm-smi.</td></tr>
+            <tr><td><strong>SYSTEM</strong></td><td>CPU / RAM / DISK + uptime dashboardu.</td></tr>
+            <tr><td><strong>VAULT</strong></td><td>Liczba notatek + rozmiar. Kliknięcie → przeskakuje do zakładki BRAIN.</td></tr>
+            <tr><td><strong>VECTOR DB</strong></td><td>Indeksy SQLite-vec (po implementacji RAG).</td></tr>
+            <tr><td><strong>EMBEDDINGS</strong></td><td>Wykryte modele embedujące w Ollamie (np. <code>nomic-embed-text</code>). Wymagane dla RAG.</td></tr>
+            <tr><td><strong>LIBRARY</strong></td><td>Liczba PDF-ów w <code>data\library\</code>. Kliknięcie → BRAIN tab.</td></tr>
+            <tr><td><strong>KNOWLEDGE GRAPH</strong></td><td>Liczba węzłów (notatek). Kliknięcie → BRAIN.</td></tr>
+            <tr><td><strong>CLAUDE / OPENAI / itd.</strong></td><td>Pojawiają się <strong>tylko jeśli włączyłeś</strong> providera w OPTIONS. Pokazują czy klucz OK + skąd (env / file).</td></tr>
+          </table>
+          <p><strong>Topbar</strong>: aktywny model · uptime · czas. Kolor MODEL zmieni się na <span style="color:var(--red)">czerwony</span> jeśli któryś provider przekroczy dzienny limit (alerty).</p>
+        </section>
+
+        <section id="i-brain" class="ins-section">
+          <h2>ZAKŁADKA BRAIN</h2>
+          <p>Tu mieszka Twoja wiedza. 4 sekcje, każda samodzielna.</p>
+          <h3>VAULT</h3>
+          <p>Markdown notes w <code>data\vault\</code>. Pełna przeglądarka z searchem, filtrem źródła, sortowaniem i podglądem. Kliknięcie wiersza = panel podglądu z treścią notatki. Górny pasek: search box + dropdown source filter (claude-ai / claude-code / cursor / itd.) + sortowanie (newest / oldest / name / size).</p>
+          <p>Żeby edytować notatki — otwórz vault w Obsidianie (<code>File → Open Vault → data/vault/</code>) albo przez Claude Desktop z brain-vault MCP. Przycisk <code>OPEN FOLDER</code> otwiera Explorer bezpośrednio w katalogu vault.</p>
+          <h3>KNOWLEDGE GRAPH</h3>
+          <p>D3 force-graph z notatek. Węzeł = notatka, krawędź = <code>[[wikilink]]</code> w treści (Obsidian-style) lub powiązanie source-cluster. Zoom kółkiem myszy, pan drag tłem. <code>REFRESH</code> = przeładowanie danych z vault.</p>
+          <p><strong>Tryb pin</strong> (checkbox <code>📌 pin</code> w headerze): przy zaznaczeniu drag hubu <em>zostawi</em> go w miejscu po puszczeniu — czerwona kropka na węźle, przycisk <code>UNPIN ALL</code>. Prawy klik na przypiętym węźle = odpina go. Bez pin mode drag jest tymczasowy (fizyka odciąga węzeł z powrotem).</p>
+          <p>Kolory klastrów odpowiadają źródłu: pomarańczowy = claude-ai, niebieski = claude-code, zielony = antigravity, żółty = grok, fioletowy = cursor/chatgpt. Węzły-huby to białe kule z glow — centra każdego klastra.</p>
+          <h3>LIBRARY</h3>
+          <p>PDF-y / ebooki w <code>data\library\</code>. <code>OPEN FOLDER</code> otwiera Explorer — wrzuć tam pliki. <code>REINDEX</code> przebudowuje indeks wektorowy do wyszukiwania semantycznego (RAG). Patrz sekcja "RAG / LIBRARY" poniżej.</p>
+          <h3>TRANSCRIPT DISTILLATION</h3>
+          <p>Wyciąga decyzje / komendy / fakty / pytania z historycznych sesji AI i zapisuje jako markdown w <code>data\vault\distilled\</code>. Obsługuje: Claude Code (auto-wykrycie), ChatGPT ZIP export, Claude.ai JSON export, JSONL, MD/TXT z inbox (<code>data/brain-raw/inbox/</code>).</p>
+          <p>Kontrolki:</p>
+          <table class="ins-table">
+            <tr><td><code>Model</code></td><td>Który model Ollamy ma destylować. Sugerowany <code>qwen2.5:14b</code>.</td></tr>
+            <tr><td><code>Limit</code></td><td>Ile najnowszych sesji wziąć. Puste = wszystkie. Każda sesja ~1 min.</td></tr>
+            <tr><td><code>COLLECT</code></td><td>Tylko zeskanuj i znormalizuj. Bez destylacji. Sekundy.</td></tr>
+            <tr><td><code>RUN ALL</code></td><td>Collect + destylacja. Progress live: <em>done/total</em>, current session.</td></tr>
+            <tr><td><code>STOP</code></td><td>Przerywa proces w trakcie.</td></tr>
+          </table>
+        </section>
+
+        <section id="i-tools" class="ins-section">
+          <h2>ZAKŁADKA TOOLS</h2>
+          <p>Administracja stackiem — agenty, scheduler, MCP, logi, backup, idle guard. Działania pipeline (distylacja, code index) są w zakładce PIPELINE.</p>
+          <h3>MCP SERVERS</h3>
+          <p>MCP = Model Context Protocol. Pozwala udostępniać LLM-om narzędzia/dane przez stdio. Dashboard zarządza cyklem życia takich serverów (start/stop/logs).</p>
+          <p><code>+ ADD SERVER</code> otwiera formularz. Wypełnij: ID, Title, Command (np. <code>npx</code>), Args (jeden per linia), Env (KEY=VALUE per linia). <code>SAVE</code> → wiersz pojawi się na liście. <code>START</code> = uruchamia proces, dot zielenieje. <code>LOGS</code> = przełącza do LOGS i pokazuje wyjście. <code>DEL</code> = usuwa wpis.</p>
+          <p>UWAGA: <strong>te servery są NIEZALEŻNE</strong> od tych w configu Claude Desktop. Dashboard MCP runner jest dla narzędzi które nie mają własnego MCP clienta. Claude Desktop ma własną listę w <code>%APPDATA%\Claude\claude_desktop_config.json</code>.</p>
+          <h3>LOGS</h3>
+          <p>Dropdown wybiera plik z <code>logs\</code>. Auto-refresh co 3s (checkbox <em>auto</em>). <code>REFRESH</code> ręcznie. <code>CLEAR</code> wymazuje plik (przyda się gdy log rośnie).</p>
+          <p>Standardowe logi:</p>
+          <table class="ins-table">
+            <tr><td><code>ollama.err.log</code></td><td>Co Ollama loguje (model loading, GPU detection)</td></tr>
+            <tr><td><code>dashboard.err.log</code></td><td>uvicorn + traceback Pythona jeśli coś się sypie</td></tr>
+            <tr><td><code>distill.log</code></td><td>Pipeline destylacji transkryptów</td></tr>
+            <tr><td><code>mcp-&lt;id&gt;.log</code></td><td>Per MCP server stdout+stderr</td></tr>
+          </table>
+          <h3>BACKUP</h3>
+          <p>Tworzy ZIP zawierający vault + dashboard + pipeline + config. Pomija: bin/, modele Ollamy (~20 GB), brain-raw, logs. Dwa checkboxy:</p>
+          <table class="ins-table">
+            <tr><td><code>include keys</code></td><td>OFF domyślnie. Włącz tylko gdy backup idzie do bezpiecznego miejsca (klucze plaintext w ZIP).</td></tr>
+            <tr><td><code>include distilled</code></td><td>ON domyślnie. Wyłącz jeśli chcesz tylko ręcznie pisane notatki.</td></tr>
+          </table>
+          <p>Lista poprzednich backupów z <code>DOWNLOAD</code> i <code>DEL</code>.</p>
+          <h3>API USAGE</h3>
+          <p>Liczniki requestów per provider przez lokalny proxy. Per wiersz: <em>total · today · errors · last seen</em> + input <strong>daily limit</strong>. Ustaw np. 100 → SAVE. Gdy <em>today</em> przekroczy limit:</p>
+          <ul>
+            <li>Ramka wiersza czerwona, dot czerwony</li>
+            <li><span style="color:var(--red)">⚠ OVER DAILY LIMIT</span> pod nazwą</li>
+            <li>Browser notification (jednorazowo per dzień, wymaga zgody przeglądarki)</li>
+            <li>Topbar MODEL czerwony</li>
+          </ul>
+          <p>Wpisanie <code>0</code> w limit i SAVE = wyłącza alert.</p>
+        </section>
+
+        <section id="i-opt" class="ins-section">
+          <h2>ZAKŁADKA OPTIONS</h2>
+          <p>Zarządzanie kluczami API dla 6 dostawców: Claude, OpenAI, Gemini, Grok, DeepSeek, OpenRouter.</p>
+          <p>Per wiersz: ikona, nazwa, stan (env / file / no key), input password, toggle, SAVE, TEST.</p>
+          <ol>
+            <li>Wklej klucz w input</li>
+            <li>Kliknij toggle (cyan/magenta gradient = włączony)</li>
+            <li>SAVE</li>
+            <li>TEST = strzela do API, zwraca <code>OK 200</code> lub <code>FAIL 401</code></li>
+          </ol>
+          <p><strong>Hierarchia źródeł:</strong> env var (np. <code>ANTHROPIC_API_KEY</code>) > plik <code>data\api-keys.json</code>. Po włączeniu providera pojawi się kafelek na DASHBOARD.</p>
+        </section>
+
+        <section id="i-chat" class="ins-section">
+          <h2>CHAT WIDGET</h2>
+          <p>Fioletowo-cyjanowa ikona <strong>prawy-dolny róg</strong> ekranu. Klik → panel. Streaming odpowiedzi z lokalnego modelu Ollamy.</p>
+          <ul>
+            <li>Dropdown w nagłówku = aktywny model</li>
+            <li>Enter = wyślij, Shift+Enter = nowa linia</li>
+            <li>Historia trzymana w pamięci (znika przy reload strony)</li>
+            <li>× zamyka panel (model w VRAM zostaje załadowany)</li>
+          </ul>
+          <h3>Brain tool calling</h3>
+          <p>Gdy model wspiera function calling (qwen2.5:14b tak), widget automatycznie:</p>
+          <ol>
+            <li>Injectuje <code>USER.md</code> jako system message — model zna Twój profil od razu</li>
+            <li>Udostępnia narzędzie <code>search_brain(query)</code> — model może przeszukać vault/library semantycznie</li>
+            <li>Działa w pętli agentic (max 3 rundy): model → tool call → wynik → model → odpowiedź końcowa</li>
+          </ol>
+          <p>Przykład: pytasz o "moja konfiguracja WireGuard" — model sam wywołuje <code>search_brain</code>, dostaje top-5 notatek z vault, cytuje je w odpowiedzi. Bez ręcznego kopiowania kontekstu.</p>
+          <p><strong>Jeśli model nie wywołuje search_brain</strong>: zmień na <code>qwen2.5:14b</code> (modele 3b/7b mogą nie obsługiwać tool calling). Jeśli vault jest zablokowany (REINDEX w toku), model wraca do USER.md i odpowiada z profilu.</p>
+        </section>
+
+        <section id="i-portable" class="ins-section">
+          <h2>PORTABLE — BRAIN NA NOWYM KOMPUTERZE</h2>
+          <p><strong>Brain folder JEST kopią wszystkich twoich rozmów AI.</strong> Skopiuj go na drugi komputer i wszystkie aplikacje (Claude Desktop, Antigravity, Cursor) będą mieć ten sam dostęp do twojej wiedzy.</p>
+
+          <h3>Krok po kroku — na nowej maszynie</h3>
+          <ol>
+            <li><strong>Transfer brain folder</strong> — najlepiej:
+              <ul>
+                <li><strong>ZIP</strong> z TOOLS → BACKUPS, skopiuj na pendrive</li>
+                <li><strong>OneDrive / Dropbox</strong> sync (folder w chmurze)</li>
+                <li><strong>Syncthing</strong> p2p między kompami (zero cloud)</li>
+                <li><strong>Git</strong> jeśli traktujesz brain jako kod (vault/.gitignore dla binarnych)</li>
+              </ul>
+            </li>
+            <li><strong>Uruchom raz</strong> — <code>brain.bat</code> (option 1 START). Tray icon pojawi się.</li>
+            <li><strong>Dashboard otworzy się sam</strong> na <code>http://127.0.0.1:7860</code></li>
+            <li><strong>TOOLS → AGENTS → ▶ DEPLOY TO ALL INSTALLED</strong> — jedno kliknięcie wpina brain MCP do <strong>wszystkich</strong> wykrytych aplikacji AI na tej maszynie</li>
+            <li><strong>Restart aplikacji</strong> AI (Claude Desktop, Antigravity itd.) — załadują nowe MCP</li>
+            <li><strong>Test</strong>: w Claude Desktop wpisz <code>brain-rag.search_library "tunel WireGuard MikroTik"</code> — powinien zwrócić twoje notatki z poprzedniego kompa</li>
+          </ol>
+
+          <h3>Co dokładnie się przenosi</h3>
+          <table class="ins-table">
+            <thead><tr><th>Folder</th><th>Co</th><th>Czy potrzebne?</th></tr></thead>
+            <tbody>
+              <tr><td><code>data/vault/</code></td><td>Destylowane rozmowy + ręczne notatki (markdown) — kilkaset do kilku tysięcy plików</td><td>✓ esencja</td></tr>
+              <tr><td><code>data/library/</code></td><td>PDF/EPUB</td><td>✓ książki</td></tr>
+              <tr><td><code>data/vectordb/</code></td><td>Vector index (sqlite-vec)</td><td>✓ żeby search działał od razu (jak brak — rebuild ~10 min)</td></tr>
+              <tr><td><code>data/brain-raw/</code></td><td>Surowe ZIP-y + JSON sesje</td><td>opcjonalne (kopia bezpieczeństwa)</td></tr>
+              <tr><td><code>data/ollama-models/</code></td><td>LLM-y (~10-30 GB)</td><td>opcjonalne (Ollama je sama dociągnie)</td></tr>
+              <tr><td><code>bin/python/</code> + <code>bin/ollama/</code></td><td>Portable runtime</td><td>✓ jeśli chcesz bez instalacji Python/Ollama</td></tr>
+              <tr><td><code>data/api-keys.json</code></td><td>Twoje klucze API</td><td>⚠ uważnie — to sekrety</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Co AGENTS panel automatyzuje</h3>
+          <p>Wykrywa zainstalowane aplikacje (Claude Desktop, Antigravity, Claude Code, Cursor, Windsurf) i wpina brain MCP w ich pliki konfiguracyjne. Bez tego musiałbyś ręcznie:</p>
+          <ul>
+            <li>Edytować <code>~/AppData/Roaming/Claude/claude_desktop_config.json</code></li>
+            <li>Edytować <code>~/.gemini/config/mcp_config.json</code></li>
+            <li>Edytować <code>~/.claude.json</code> (Claude Code)</li>
+            <li>Edytować <code>~/.cursor/mcp.json</code></li>
+            <li>Edytować <code>~/.codeium/windsurf/mcp_config.json</code></li>
+          </ul>
+          <p>Z AGENTS — jedno kliknięcie. Plus backup oryginalnych configów do <code>data/agent-configs-backup/</code> (zawsze możesz wrócić).</p>
+        </section>
+
+        <section id="i-agents" class="ins-section">
+          <h2>PODPIĘCIE AGENTÓW AI</h2>
+          <p>Dwie zupełnie różne metody:</p>
+          <h3>A) Lokalny LLM (Ollama) — OpenAI-compatible endpoint</h3>
+          <p>Każde narzędzie wspierające OpenAI API może rozmawiać z Twoją Ollamą:</p>
+          <pre>Base URL : http://127.0.0.1:11434/v1
+API Key  : ollama    (cokolwiek — Ollama nie sprawdza)
+Model    : qwen2.5-coder:14b</pre>
+          <p>Działa w: <strong>Cursor</strong> (Settings → Models → Custom OpenAI), <strong>Continue.dev</strong> (config.json), <strong>Cline</strong> (settings → OpenAI Compatible), <strong>Aider</strong>, każdy SDK OpenAI w Pythonie/JS.</p>
+          <h3>B) Chmurowy LLM przez lokalny proxy</h3>
+          <p>Klucz ustawiasz <strong>raz</strong> w OPTIONS, narzędzia kierujesz na <code>http://127.0.0.1:7860/proxy/&lt;provider&gt;/...</code>. Patrz sekcja "LOKALNY PROXY".</p>
+          <h3>C) Vault dostępny dla LLM przez MCP</h3>
+          <p>Patrz sekcja "MCP — DODAWANIE". Konfiguracja per narzędzie:</p>
+          <h4>Claude Desktop — pełny config (copy-paste)</h4>
+          <p><strong>Plik:</strong> <code>%APPDATA%\Claude\claude_desktop_config.json</code></p>
+          <p>Otwórz w VS Code / Notepad → wklej całość → zapisz → <strong>restart Claude Desktop</strong> (Quit z tray + ponów):</p>
+          <pre>{
+  "mcpServers": {
+    "brain-vault": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "<brain>data\\vault"
+      ]
+    },
+    "brain-library": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "<brain>data\\library"
+      ]
+    },
+    "brain-rag": {
+      "command": "<brain>bin\\python\\python.exe",
+      "args": [
+        "<brain>dashboard\\mcp_rag.py"
+      ],
+      "env": {
+        "OLLAMA_HOST": "127.0.0.1:11434"
+      }
+    }
+  }
+}</pre>
+          <p>Settings → Developer → MCP servers powinno pokazać <strong>3 zielone</strong>. Jeśli czerwone — kliknij View Logs dla danego servera, sprawdź błąd.</p>
+
+          <h4>Antigravity (Google IDE / VS Code fork) — ten sam config</h4>
+          <p>Antigravity wspiera MCP. Sposób edycji:</p>
+          <ol>
+            <li>Otwórz Antigravity → <strong>Settings (Ctrl+,)</strong> → szukaj "MCP" lub "Model Context Protocol"</li>
+            <li>Albo <strong>Command Palette (Ctrl+Shift+P)</strong> → "MCP: Edit Config"</li>
+            <li>Wklej dokładnie ten sam JSON co dla Claude Desktop (powyżej)</li>
+            <li>Restart Antigravity</li>
+          </ol>
+          <p>Pliki konfiguracji w Antigravity (jak nie znajdziesz w Settings):</p>
+          <ul>
+            <li><code>%APPDATA%\Antigravity\User\settings.json</code> — globalne</li>
+            <li><code>%APPDATA%\Antigravity\User\globalStorage\</code> — niektóre extensiony tu trzymają config</li>
+            <li><code>&lt;workspace&gt;\.vscode\mcp.json</code> — per workspace (jeśli wspiera)</li>
+          </ul>
+          <p>⚠️ <strong>Co NIE wkleisz</strong>: nie dodawaj MCP serverów których nie masz fizycznie zainstalowanych. Każda nieistniejąca komenda = czerwony failed w Claude Desktop.</p>
+          <h4>Claude Code (CLI)</h4>
+          <pre>claude mcp add brain-vault npx -y @modelcontextprotocol/server-filesystem <brain>/data/vault</pre>
+          <p>Sprawdź: <code>claude mcp list</code>.</p>
+          <h4>Cursor / inne</h4>
+          <p>Cursor wspiera MCP od v0.42+ — sprawdź Settings → MCP. Składnia config-a różni się per narzędzie, ale logika ta sama: command + args.</p>
+        </section>
+
+        <section id="i-mcp" class="ins-section">
+          <h2>MCP — JAK DODAWAĆ NOWE SERVERY</h2>
+          <p>Sources MCP serverów:</p>
+          <table class="ins-table">
+            <tr><th>Co</th><th>Command</th><th>Args</th></tr>
+            <tr><td>Filesystem (read/write plików)</td><td><code>npx</code></td><td><code>-y @modelcontextprotocol/server-filesystem &lt;path&gt;</code></td></tr>
+            <tr><td>SQLite (query baz)</td><td><code>npx</code></td><td><code>-y @modelcontextprotocol/server-sqlite &lt;db-path&gt;</code></td></tr>
+            <tr><td>GitHub (issues, PRs)</td><td><code>npx</code></td><td><code>-y @modelcontextprotocol/server-github</code> + env <code>GITHUB_TOKEN</code></td></tr>
+            <tr><td>Puppeteer (browser control)</td><td><code>npx</code></td><td><code>-y @modelcontextprotocol/server-puppeteer</code></td></tr>
+            <tr><td>Memory (key-value)</td><td><code>npx</code></td><td><code>-y @modelcontextprotocol/server-memory</code></td></tr>
+            <tr><td>Brain RAG (search biblioteki PDF)</td><td><code>bin\python\python.exe</code></td><td><code>dashboard\mcp_rag.py</code> (po implementacji)</td></tr>
+          </table>
+          <p>Lista oficjalnych: <a href="https://github.com/modelcontextprotocol/servers" target="_blank">github.com/modelcontextprotocol/servers</a></p>
+          <p><strong>Dodajesz w dwóch miejscach</strong> dla pełnego efektu:</p>
+          <ol>
+            <li><strong>Dashboard MCP runner</strong> (TOOLS → MCP SERVERS → +ADD) — Twoja zarządzaczka, monitoring procesu, logi</li>
+            <li><strong>Config klienta MCP</strong> (Claude Desktop / Cursor / Claude Code CLI) — żeby narzędzie wiedziało jak się podłączyć</li>
+          </ol>
+          <p>Te dwa są niezależne — wymagają osobnej konfiguracji.</p>
+        </section>
+
+        <section id="i-proxy" class="ins-section">
+          <h2>LOKALNY PROXY</h2>
+          <p>Dashboard wystawia <code>/proxy/&lt;provider&gt;/&lt;rest&gt;</code> które forwarduje do realnego API z Twoim kluczem.</p>
+          <h3>Mapowanie URL-i</h3>
+          <table class="ins-table">
+            <tr><th>Provider</th><th>Original</th><th>Proxy</th></tr>
+            <tr><td>Anthropic</td><td><code>api.anthropic.com/v1/messages</code></td><td><code>127.0.0.1:7860/proxy/anthropic/v1/messages</code></td></tr>
+            <tr><td>OpenAI</td><td><code>api.openai.com/v1/chat/completions</code></td><td><code>127.0.0.1:7860/proxy/openai/v1/chat/completions</code></td></tr>
+            <tr><td>Gemini</td><td><code>generativelanguage.googleapis.com/v1beta/...</code></td><td><code>127.0.0.1:7860/proxy/google/v1beta/...</code></td></tr>
+            <tr><td>Grok</td><td><code>api.x.ai/v1/...</code></td><td><code>127.0.0.1:7860/proxy/xai/v1/...</code></td></tr>
+            <tr><td>DeepSeek</td><td><code>api.deepseek.com/v1/...</code></td><td><code>127.0.0.1:7860/proxy/deepseek/v1/...</code></td></tr>
+            <tr><td>OpenRouter</td><td><code>openrouter.ai/api/v1/...</code></td><td><code>127.0.0.1:7860/proxy/openrouter/api/v1/...</code></td></tr>
+          </table>
+          <h3>Przykład: Anthropic SDK</h3>
+          <pre>import anthropic
+client = anthropic.Anthropic(
+    base_url="http://127.0.0.1:7860/proxy/anthropic",
+    api_key="proxied"   # ignored, dashboard injects real key
+)
+client.messages.create(...)</pre>
+          <h3>Co zyskujesz</h3>
+          <ul>
+            <li>Jeden klucz w jednym miejscu (rotacja: jedno SAVE w OPTIONS)</li>
+            <li>Liczniki użycia + alerty dziennego progu (TOOLS → API USAGE)</li>
+            <li>Streaming działa (SSE forwardowane chunk-by-chunk)</li>
+          </ul>
+          <h3>Czego NIE robi</h3>
+          <ul>
+            <li>NIE cachuje — każdy request to realny koszt u dostawcy</li>
+            <li>NIE działa dla webowych UI (Claude.ai, ChatGPT.com) — tylko API</li>
+            <li>NIE ma auth — każdy proces na Twoim laptopie ma dostęp</li>
+          </ul>
+        </section>
+
+        <section id="i-skills" class="ins-section">
+          <h2>SKILLS / CLI SKILLE</h2>
+          <p>Brain ma dwa rodzaje skilli — nie mylić:</p>
+
+          <h3>A) CLI Skills — slash-commands w Claude Code</h3>
+          <p>Pliki <code>SKILL.md</code> w <code>~/.claude/skills/</code>. Automatycznie dostępne jako <code>/skill-name</code> w każdej sesji terminala <code>claude</code>. Nie wymagają żadnej konfiguracji — Claude Code wykrywa je przy starcie.</p>
+          <table class="ins-table">
+            <tr><td><strong>Lokalizacja</strong></td><td><code>~/.claude/skills\*.md</code></td></tr>
+            <tr><td><strong>Użycie w Claude Code</strong></td><td><code>/mikrotik-routeros</code>, <code>/advanced-programming</code> itd.</td></tr>
+            <tr><td><strong>Użycie w innych agentach</strong></td><td><code>brain-rag.get_skill("nazwa")</code> — injectuje treść skilla do kontekstu</td></tr>
+            <tr><td><strong>Wylistowanie</strong></td><td><code>brain-rag.list_cli_skills</code> lub zakładka BRAIN → CLI SKILLS</td></tr>
+            <tr><td><strong>Edycja</strong></td><td>Ręcznie — brain-vault MCP nie ma dostępu do <code>~/.claude/</code></td></tr>
+          </table>
+          <p>Przykłady: <code>mikrotik-routeros</code>, <code>advanced-programming</code>, <code>web-security</code>, <code>crypto-trading-analysis</code>, <code>pinescript-v5-expert</code>. Lista: BRAIN tab → CLI SKILLS section.</p>
+
+          <h3>B) Brain Skills — agentic LLM workflows</h3>
+          <p>Pliki <code>.md</code> w <code>brain/skills/</code>. Każdy definiuje workflow: zbiera kontekst z RAG, woła lokalny model, zapisuje wynik do <code>vault/digests/</code>. Uruchamiane z dashboardu (PIPELINE → SKILLS) lub przez MCP.</p>
+          <table class="ins-table">
+            <tr><td><strong>Lokalizacja</strong></td><td><code>brain/skills/*.md</code> z YAML frontmatter</td></tr>
+            <tr><td><strong>Uruchomienie CLI</strong></td><td>PIPELINE tab → SKILLS → ▶ RUN</td></tr>
+            <tr><td><strong>Uruchomienie MCP</strong></td><td><code>brain-rag.run_skill name="trading-digest"</code></td></tr>
+            <tr><td><strong>Wylistowanie</strong></td><td><code>brain-rag.list_skills</code></td></tr>
+          </table>
+          <p>Startowe skille: <code>inbox-process</code>, <code>trading-digest</code>, <code>cv-update</code>, <code>mikrotik-config</code>, <code>dedupe-vault</code>. Dodaj własny: wrzuć <code>my-skill.md</code> z YAML frontmatter (<code>name</code>, <code>description</code>, <code>model</code>, <code>context</code>, <code>outputs</code>).</p>
+
+          <h3>Różnica kluczowa</h3>
+          <table class="ins-table">
+            <tr><th></th><th>CLI Skill</th><th>Brain Skill</th></tr>
+            <tr><td>Gdzie działa</td><td>Claude Code terminal</td><td>Brain dashboard / MCP</td></tr>
+            <tr><td>Model</td><td>Claude (API)</td><td>Lokalny Ollama (qwen2.5)</td></tr>
+            <tr><td>Wynik</td><td>Odpowiedź w sesji Claude</td><td>Plik w <code>vault/digests/</code></td></tr>
+            <tr><td>Kontekst</td><td>Injectowany do systemu przy /komendzie</td><td>RAG zbiera automatycznie</td></tr>
+          </table>
+        </section>
+
+        <section id="i-dist" class="ins-section">
+          <h2>DESTYLACJA TRANSKRYPTÓW</h2>
+          <p>Bierze historię rozmów z asystentami AI i destyluje do <em>decisions / solutions / facts / questions</em>.</p>
+
+          <h3>⭐ GDZIE WRZUCAĆ TRANSKRYPTY</h3>
+          <p>Drop zone: <code>data\brain-raw\inbox\</code></p>
+          <p>Cokolwiek tam wrzucisz zostanie wykryte przy <code>COLLECT</code> / <code>RUN ALL</code> w PIPELINE → TRANSCRIPT DISTILLATION:</p>
+          <table class="ins-table">
+            <tr><th>Format</th><th>Co to</th><th>Jak zdobyć</th></tr>
+            <tr><td><code>.zip</code></td><td>ChatGPT export ZIP</td><td>ChatGPT → Settings → Data Controls → Export → mail z linkiem → wrzuć ZIP bez rozpakowywania</td></tr>
+            <tr><td><code>.json</code></td><td>Claude.ai eksport / generic</td><td>Anthropic → Settings → Privacy → Export → ZIP → rozpakuj → wrzuć <code>conversations.json</code></td></tr>
+            <tr><td><code>.jsonl</code></td><td>Linia per wiadomość: <code>{"role":"user","content":"..."}</code></td><td>Twoje własne loga / scraper</td></tr>
+            <tr><td><code>.md</code> / <code>.txt</code></td><td>Ręczna notatka rozmowy</td><td>Skopiuj wklej z dowolnej rozmowy</td></tr>
+          </table>
+          <p><strong>Claude Code</strong> ma osobny auto-wykrywany lokalizacja: <code>~/.claude/projects/*/*.jsonl</code> — nic nie musisz robić, COLLECT je zassie.</p>
+
+          <h3>Co działa, co nie</h3>
+          <ul>
+            <li><strong>Claude Code</strong> — auto-wykrywanie, parser ✓</li>
+            <li><strong>Inbox (manual drop)</strong> — ChatGPT ZIP / JSON / JSONL / MD / TXT ✓</li>
+            <li><strong>Cursor</strong> — wykrywanie w workspaceStorage ⚠ parser do napisania (eksport ręcznie do JSON)</li>
+            <li><strong>Cline</strong> — analogicznie ⚠ parser do napisania</li>
+          </ul>
+          <h3>Pipeline pod spodem</h3>
+          <ol>
+            <li>Collector czyta JSONL, filtruje (tylko user/assistant), normalizuje do <code>data\brain-raw\normalized\</code></li>
+            <li>Destylator tnie transkrypt na chunki po ~7 KB (większe = model traci schemat JSON)</li>
+            <li>Każdy chunk → Ollama z system-prompt + delimitery + few-shot example</li>
+            <li>Merge + dedup → markdown z YAML frontmatter w <code>data\vault\distilled\</code></li>
+          </ol>
+          <h3>Z CLI równolegle</h3>
+          <pre>set OLLAMA_HOST=127.0.0.1:11434
+"<brain>\bin\python\python.exe" ^
+  "<brain>\pipeline\distill.py" run ^
+  --model qwen2.5:14b --limit 5</pre>
+          <p>Status: <code>distill.py status</code> lub <code>data\distill-status.json</code>.</p>
+        </section>
+
+        <section id="i-rag" class="ins-section">
+          <h2>RAG / LIBRARY (SEARCH PO KSIĄŻKACH)</h2>
+          <p><strong>Działa, multi-format.</strong> PyMuPDF + ebooklib + python-docx + mobi → chunker → Ollama <code>nomic-embed-text</code> (768-dim) → sqlite-vec.</p>
+
+          <h3>Wspierane formaty</h3>
+          <table class="ins-table">
+            <tr><th>Format</th><th>Status</th><th>Uwagi</th></tr>
+            <tr><td><code>.pdf</code></td><td>✓ pełne wsparcie</td><td>PyMuPDF, page-by-page</td></tr>
+            <tr><td><code>.epub</code></td><td>✓ pełne wsparcie</td><td>ebooklib, chapter-by-chapter</td></tr>
+            <tr><td><code>.docx</code></td><td>✓ pełne wsparcie</td><td>python-docx</td></tr>
+            <tr><td><code>.txt</code> / <code>.md</code></td><td>✓ pełne wsparcie</td><td>raw text</td></tr>
+            <tr><td><code>.html</code> / <code>.htm</code></td><td>✓ pełne wsparcie</td><td>BeautifulSoup</td></tr>
+            <tr><td><code>.mobi</code> / <code>.azw</code> / <code>.azw3</code></td><td>⚠ best-effort</td><td>Kindle DRM zabija to często — bez DRM działa</td></tr>
+            <tr><td><code>.zip</code> / <code>.7z</code></td><td>✓ auto-extract</td><td>rozpakowane do <code>_extracted_&lt;nazwa&gt;/</code> obok archiwum, potem indeksowane</td></tr>
+            <tr><td><code>.rar</code></td><td>✗ nie działa</td><td>wymaga zewnętrznego <code>unrar.exe</code> — wypakuj ręcznie lub przekonwertuj na 7z</td></tr>
+          </table>
+
+          <h3>Jak używać</h3>
+          <ol>
+            <li>Wrzuć pliki dowolnego z powyższych formatów do <code>data\library\</code> (drag &amp; drop w Explorerze lub <code>OPEN FOLDER</code> w BRAIN tab)</li>
+            <li>BRAIN → LIBRARY → <code>REINDEX</code></li>
+            <li>Pipeline auto-rozpakowuje archiwa, wykrywa formaty, ekstrahuje tekst, embeduje</li>
+            <li>Progress live: <em>indexing X/Y · current: nazwa</em></li>
+            <li>Po zakończeniu: <em>indexed N chunks across M files (extracted K archives)</em></li>
+          </ol>
+
+          <h3>Wyszukiwanie z poziomu Claude Desktop</h3>
+          <p>Po restarcie Claude Desktop ma 3-ci MCP server <code>brain-rag</code> z dwoma narzędziami:</p>
+          <ul>
+            <li><code>search_library(query, top_k=5)</code> — semantyczne wyszukiwanie, zwraca top-K chunków z cytatem (nazwa PDF + nr strony + score)</li>
+            <li><code>library_status()</code> — lista zaindeksowanych plików, liczba chunków</li>
+          </ul>
+          <p>Przykład promptu: <em>"Co mówią moje książki o entropii? Użyj search_library."</em></p>
+
+          <h3>Bezpośrednio przez API (test)</h3>
+          <pre>curl -X POST http://127.0.0.1:7860/api/library/search ^
+  -H "content-type: application/json" ^
+  -d "{\"query\": \"quantum entanglement\", \"top_k\": 3}"</pre>
+
+          <h3>Z CLI</h3>
+          <pre>"<brain>\bin\python\python.exe" ^
+  "<brain>\pipeline\rag.py" index               REM zaindeksuj
+"<brain>\bin\python\python.exe" ^
+  "<brain>\pipeline\rag.py" search "twoje pytanie"
+"<brain>\bin\python\python.exe" ^
+  "<brain>\pipeline\rag.py" status              REM ile chunków
+"<brain>\bin\python\python.exe" ^
+  "<brain>\pipeline\rag.py" clear               REM wywal indeks</pre>
+
+          <h3>Pod spodem</h3>
+          <table class="ins-table">
+            <tr><td>Embed model</td><td><code>nomic-embed-text</code> (768 dim, ~270 MB, szybki na GPU)</td></tr>
+            <tr><td>Chunk size</td><td>~1800 znaków z overlap 200 (próbuje łamać na zdaniach)</td></tr>
+            <tr><td>Storage</td><td><code>data\vectordb\library.db</code> (SQLite + sqlite-vec virtual table)</td></tr>
+            <tr><td>Reindex</td><td>Per-PDF: usuwa stare chunki dla danego pliku, tworzy nowe. Reszta indeksu nietknięta.</td></tr>
+            <tr><td>Batch size</td><td>32 chunków na request do Ollamy</td></tr>
+          </table>
+
+          <h3>Limity i co dorobić później</h3>
+          <ul>
+            <li>OCR PDF-ów ze skanami (PyMuPDF zwraca pusty tekst dla plików image-only — trzeba Tesseract) — <strong>nie zrobione</strong>. Objaw: REINDEX przeskakuje plik jako "0 chunks".</li>
+            <li>Re-rank wyników (np. cross-encoder albo BM25 na top-K) — <strong>nie zrobione</strong>. Obecny hybrid search = semantic score + keyword boost w nazwie pliku, co już znacznie pomaga.</li>
+            <li>Auto-reindex przy wrzuceniu nowego pliku (watcher) — <strong>nie zrobione</strong>. Na razie kliknij REINDEX ręcznie po wrzuceniu nowych PDF-ów.</li>
+          </ul>
+        </section>
+
+        <section id="i-import" class="ins-section">
+          <h2>IMPORT KONTEKSTU (GEMINI STYLE)</h2>
+          <p>Gemini ma natywną funkcję <strong>"Importuj czaty"</strong> (Settings → Memory). Pozwala wgrać ZIP z eksportem ChatGPT/Claude i Gemini sam ekstrahuje wiedzę o Tobie. Skutek: kontynuujesz rozmowy z innego asystenta jakby pamiętał Twoje preferencje.</p>
+          <p>Ten sam mechanizm możesz odpalić w <strong>dowolnym</strong> asystencie (Claude, ChatGPT, Grok, lokalny LLM) wklejając im poniższy prompt jako pierwszy turn. Asystent dostaje instrukcję podsumowania tego co o Tobie wie według ustrukturyzowanego formatu.</p>
+          <h3>Prompt (kopiuj-wklej do dowolnego asystenta)</h3>
+          <pre>Pomagasz mi zaimportować kontekst z jednego asystenta AI do drugiego.
+Twoim zadaniem jest przejrzenie naszych poprzednich rozmów i podsumowanie tego,
+co o mnie wiesz.
+
+W danych wyjściowych unikaj zaimków w pierwszej osobie (ja, mój, mnie, moje)
+i w drugiej osobie (ty, twój, tobie, twoje). Zamiast tego używaj określenia
+„użytkownik" lub neutralnego sformułowania.
+
+Jeśli to możliwe, zachowaj słowa użytkownika w dosłownym brzmieniu, zwłaszcza
+w przypadku instrukcji i ustawień.
+
+Kategorie (dane wyjściowe w tej kolejności):
+1. Informacje demograficzne: preferowane imiona i nazwiska, zawód,
+   wykształcenie i miejsce zamieszkania.
+2. Zainteresowania i preferencje: długotrwałe, aktywne zaangażowanie
+   (nie tylko posiadanie przedmiotu lub jednorazowy zakup).
+3. Relacje: potwierdzone, trwałe relacje.
+4. Wydarzenia, projekty i plany z datami: dziennik ostatnich ważnych działań.
+5. Instrukcje: reguły, o których przestrzeganie w przyszłości zostałeś
+   przeze mnie wyraźnie proszony — „zawsze rób X", „nigdy nie rób Y"
+   i korekty Twojego zachowania.
+
+Format:
+Podziel treść na oznaczone sekcje, używając powyższych kategorii.
+Spróbuj dołączyć dosłowne cytaty z moich promptów, które uzasadniają każdy wpis.
+Każdy wpis powinien mieć taką strukturę:
+* Użytkownik nazywa się &lt;name&gt;.
+    * Dowód: użytkownik powiedział „nazywaj mnie &lt;name&gt;". Data: [RRRR-MM-DD].
+
+Dane wyjściowe:
+— Sformatuj ostateczne podsumowanie wyjściowe jako blok tekstu.
+
+Na koniec dokończ zdanie „Jestem AI i nazywam się &lt;name&gt;", gdzie
+&lt;name&gt; to ChatGPT, Claude, Grok itp.</pre>
+
+          <h3>Jak to się ma do brain</h3>
+          <p>Brain robi <strong>analogiczną rzecz, ale lokalnie i automatycznie</strong>: <em>destylacja transkryptów</em> (sekcja DESTYLACJA) bierze Twoje historyczne sesje z Claude Code (i wszystko co wrzucisz do <code>data/brain-raw/inbox/</code>) i wyciąga z nich decisions/solutions/facts/questions do markdown w <code>data/vault/distilled/</code>.</p>
+          <h3>Workflow hybrydowy (zalecany)</h3>
+          <ol>
+            <li>Pobierz eksporty: ChatGPT (Settings → Data Controls → Export), Claude.ai (Settings → Privacy → Export)</li>
+            <li>Wrzuć ZIP/JSON do <code>data\brain-raw\inbox\</code></li>
+            <li>PIPELINE → TRANSCRIPT DISTILLATION → RUN ALL</li>
+            <li>Wynik: ustrukturyzowane notatki w vault — <strong>+ Claude Desktop widzi je przez brain-vault MCP</strong></li>
+            <li>Daj Claude Desktop prompt typu: <em>"Przeczytaj wszystkie notatki w brain-vault/distilled, podsumuj według tego formatu: [wklej prompt powyżej]"</em></li>
+          </ol>
+        </section>
+
+        <section id="i-sched" class="ins-section">
+          <h2>AUTO SCHEDULE — TŁA</h2>
+          <p>Brain ma <strong>adaptive scheduler</strong> — robi ciężkie zadania (re-destylacja, dedup, inbox collect) <strong>gdy NIE używasz kompa</strong>. Inspirowane Windows Update / OneDrive sync.</p>
+
+          <h3>Jak rozpoznaje że jesteś nieaktywny</h3>
+          <ul>
+            <li><strong>Idle detection</strong> — Windows API <code>GetLastInputInfo()</code>: sekundy od ostatniego ruchu myszy/klawiatury. Niezależne od dashboardu — działa nawet jak masz Brain zwiniętego do tray.</li>
+            <li><strong>CPU threshold</strong> — task nie odpali się jak system jest obciążony (np. grasz, kompilujesz coś, leci video).</li>
+            <li><strong>Time window</strong> — niektóre taski tylko nocą (22:00-06:00), niektóre dowolnie.</li>
+          </ul>
+
+          <h3>Startowe 4 zadania</h3>
+          <table class="ins-table">
+            <thead><tr><th>Task</th><th>Window</th><th>Warunki</th><th>Co robi</th></tr></thead>
+            <tbody>
+              <tr><td><code>redistill_thin</code></td><td>any</td><td>idle ≥10 min, CPU&lt;40%</td>
+                <td>Co 15 min: 5 krótkich notatek (&lt;500B) re-destyluje na qwen2.5:14b. <strong><span class="sched-redistill-dyn-count">...</span> takich notatek → ~<span id="sched-redistill-dyn-hours">...</span>h cierpliwości</strong> rozłożone na wiele "wyjść z domu".</td></tr>
+              <tr><td><code>redistill_thin_night</code></td><td>noc 22-06</td><td>CPU&lt;95%</td>
+                <td>Nocą — 20 notatek co 20 min. <strong>Jedna noc = ~120 notatek przerobionych.</strong> <span class="sched-redistill-dyn-count">...</span> / 120 ≈ <span id="sched-redistill-dyn-nights">...</span> noce do skończenia.</td></tr>
+              <tr><td><code>inbox_collect</code></td><td>any</td><td>idle ≥5 min, CPU&lt;50%</td>
+                <td>Co 6h: sprawdza inbox, zbiera nowe ZIP-y, destyluje świeże sesje.</td></tr>
+              <tr><td><code>dedupe_scan</code></td><td>noc</td><td>—</td>
+                <td>Raz/dobę o 3:00 — odświeża listę duplikatów do merge.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>UI w TOOLS → AUTO SCHEDULE (BACKGROUND WORKER)</h3>
+          <ul>
+            <li><strong>System info bar</strong>: aktualny CPU%, ile sek jesteś idle, czy jakiś task akurat leci</li>
+            <li><strong>Per task</strong>: kafelek z badges (NOC / DZIEŃ / IDLE wymagane / CPU&lt;X), opisem, statusem ("gotowe do uruchomienia" albo lista blokerów), checkbox enabled, przycisk RUN NOW (ignoruje warunki)</li>
+            <li><strong>Historia</strong>: collapsible, ostatnie 10 uruchomień z statusem OK/ERR + duration + summary</li>
+          </ul>
+
+          <h3>Konfiguracja</h3>
+          <p>Plik <code>data/schedule-config.json</code> — możesz ręcznie edytować <code>interval_sec</code>, <code>require_idle_sec</code>, <code>require_cpu_below</code>, <code>window</code>. Plus dodawać własne taski (musisz dorobić handler w <code>pipeline/scheduler.py</code> → <code>ACTIONS</code>).</p>
+
+          <h3>Mój praktyczny plan dla ciebie</h3>
+          <ol>
+            <li>Zostaw wszystkie 4 taski enabled (default)</li>
+            <li>Wieczorem zostaw komputer włączony — scheduler ruszy ~22:00 i przerobi 100+ notatek do rana</li>
+            <li>W dzień gdy wyjdziesz z domu na &gt;10 min (lunch, spacer, pranie) — scheduler dorzuci 5 notatek</li>
+            <li>Po 3-4 nocach masz vault soczysty</li>
+          </ol>
+        </section>
+
+        <section id="i-idle" class="ins-section">
+          <h2>IDLE GUARD / VRAM</h2>
+          <p>Ollama domyślnie trzyma model w VRAM jakiś czas po użyciu (~5-30 min, zależnie od <code>OLLAMA_KEEP_ALIVE</code>). To jest celowo: następny request leci instant zamiast czekać 5-10s na ponowne załadowanie.</p>
+          <p>Skutek uboczny: <strong>VRAM zajęty mimo że nic nie robisz</strong>. Na 16 GB karty model 14B zżera 8-10 GB. Inne aplikacje (gry, video) mogą cierpieć.</p>
+          <h3>Co masz w dashboardzie</h3>
+          <ol>
+            <li><strong>Kafelek OLLAMA na DASHBOARD</strong> pokazuje teraz <em>IN VRAM · X GB</em> z listą załadowanych modeli + przycisk <code>UNLOAD</code></li>
+            <li><strong>TOOLS → IDLE GUARD</strong> — auto-unload toggle: po N minutach idle automatycznie wywala wszystko z VRAM</li>
+            <li><strong>UNLOAD NOW</strong> w sekcji IDLE GUARD — natychmiastowy clean</li>
+          </ol>
+          <h3>Co liczy się jako "aktywność"</h3>
+          <ul>
+            <li>Hit na <code>/proxy/&lt;provider&gt;/...</code> — chmurowe API przez brain</li>
+            <li>(Chat widget i bezpośrednie wywołania Ollamy są niezależne — Ollama sama zarządza swoim TTL)</li>
+          </ul>
+          <p>Jak modele są <em>tylko</em> w pamięci Ollamy a nie używane przez brain proxy, to <strong>Ollama sama wyrzuci</strong> po <code>OLLAMA_KEEP_ALIVE</code>. Możesz to skonfigurować edytując <code>start.ps1</code>: <code>$env:OLLAMA_KEEP_ALIVE = "5m"</code> (domyślnie 30m).</p>
+          <h3>Co NIE jest aktywnością GPU</h3>
+          <p>30% util GPU na kafelku GPU gdy nic nie robisz to typowo <strong>nie Ollama</strong>, tylko Windows desktop compositor + przeglądarka z hardware acceleration + Chrome/Edge z otwartą wieloma kartami. To normalne i nieszkodliwe.</p>
+        </section>
+
+        <section id="i-back" class="ins-section">
+          <h2>BACKUP / SYNC / RESTORE</h2>
+          <h3>Backup z dashboardu</h3>
+          <p>TOOLS → BACKUP → <code>CREATE BACKUP</code>. Trwa sekundy. <code>DOWNLOAD</code> ściąga ZIP, <code>DEL</code> usuwa.</p>
+          <h3>Restore na innym kompie</h3>
+          <ol>
+            <li>Zainstaluj brain od zera: <code>brain-setup.ps1 -Root D:\brain</code> (lub dowolnie)</li>
+            <li>Rozpakuj ZIP nad świeży <code>brain\</code> — pliki się nadpiszą</li>
+            <li><code>start.cmd</code></li>
+          </ol>
+          <h3>Sync via Git/Syncthing</h3>
+          <p><code>.gitignore</code> w <code>brain\</code>:</p>
+          <pre>bin/
+data/ollama-models/
+data/brain-raw/
+data/backups/
+data/api-keys.json
+data/api-usage.json
+logs/
+__pycache__/</pre>
+          <p>Modele Ollamy (~20 GB) nie syncuj — szybciej zrobić <code>ollama pull</code> na nowej maszynie.</p>
+        </section>
+
+        <section id="i-trouble" class="ins-section">
+          <h2>TROUBLESHOOTING</h2>
+          <table class="ins-table">
+            <tr><th>Objaw</th><th>Diagnoza</th></tr>
+            <tr><td>Dashboard nie odpowiada</td><td>TOOLS → LOGS → <code>dashboard.err</code> — szukaj traceback</td></tr>
+            <tr><td>Ollama na CPU mimo GPU</td><td><code>ollama.err.log</code> → szukaj <code>library=Vulkan</code>. Brak → upewnij się że <code>OLLAMA_VULKAN=1</code> jest w env (start.ps1 to ustawia)</td></tr>
+            <tr><td>"running scripts is disabled"</td><td>Używaj <code>start.cmd</code> zamiast <code>start.ps1</code></td></tr>
+            <tr><td>OPEN FOLDER nic nie robi</td><td>Powinno działać. Jeśli nie — restart dashboardu</td></tr>
+            <tr><td>Proxy zwraca 401</td><td>Klucz dla danego providera nieustawiony. OPTIONS → wpisz + SAVE</td></tr>
+            <tr><td>Distillation puste wyniki</td><td>Model zignorował schemat. Pipeline ma już chunkowanie + <strong>stub-write fallback</strong> — nawet jak destyl. pusta, plik powstaje z linkiem do raw. Jeśli wciąż pusto, spróbuj <code>claude-haiku</code> (cloud API)</td></tr>
+            <tr><td>Brakuje destylacji sesji</td><td>TOOLS → AUTO SCHEDULE → 💡 BRAIN SUGGESTS pokaże ile zostało. CLI: <code>python pipeline/distill.py missing</code> liczy, <code>... distill --only-missing --model qwen2.5:3b</code> dorobi tylko brakujące.</td></tr>
+            <tr><td>Distill (CLI) leci, ale nie widzę</td><td>Floating panel "AKTYWNE ZADANIA" pokazuje <code>Distill (CLI): X/Y</code> przez status-file. DASHBOARD ma też live progress bar tile.</td></tr>
+            <tr><td>Auto-schedule jedzie cały czas</td><td>Wszystkie taski domyślnie <code>enabled=false</code>. Włączaj świadomie. STOP w floating panel → 1h cooldown na ten task. PAUSE 1h zatrzyma WSZYSTKO.</td></tr>
+            <tr><td>MCP server "stopped"</td><td>TOOLS → LOGS → <code>mcp-&lt;id&gt;</code>. Typowo: brak <code>npx</code> w PATH albo zły args</td></tr>
+            <tr><td>Claude Desktop nie widzi brain MCP</td><td>Pełny restart: zamknij okna + tray Quit + ponów. <code>%APPDATA%\Claude\claude_desktop_config.json</code> musi mieć sekcję <code>mcpServers</code>. Settings → Developer pokazuje status</td></tr>
+            <tr><td>Tray ikona zniknęła</td><td><code>start.cmd</code> ponownie. Lub: <code>bin\python\pythonw.exe dashboard\tray.py</code></td></tr>
+            <tr><td>Browser notification nie idzie</td><td>Musisz pozwolić przeglądarce na powiadomienia: kliknij ikonę kłódki w adresie → notyfikacje → allow</td></tr>
+          </table>
+          <p>Wszystkie logi: <strong>TOOLS → LOGS</strong>, dropdown wybiera plik, auto-refresh co 3s.</p>
+        </section>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- OPTIONS -->
+  <main id="view-options" class="view">
+    <div class="opt-wrap">
+      <div class="opt-head">
+        <h2>API PROVIDERS</h2>
+        <div class="opt-warning">
+          <strong>Status: częściowo używane</strong><br>
+          ✅ <strong>Anthropic</strong> — aktywne. Używamy <code>claude-haiku-4-5</code> w destylacji
+          (alternatywa dla lokalnego Ollama, wybierasz w schedulerze) i w analizie spraw (CASES → model).<br>
+          ⚙ <strong>OpenAI / Google / xAI / DeepSeek / OpenRouter</strong> — klucze trzymane na zapas,
+          ale brain ich jeszcze <strong>nie woła</strong>. Plan: provider per skill, re-destylacja przez DeepSeek
+          ($1.50 vs 14h lokalnie), chat dropdown z wyborem providera.<br>
+          Klucze masz i tak w configach agentów (Claude Desktop / Antigravity) — tutaj trzymamy je
+          centralnie żeby aplikacja brain mogła ich używać <em>bezpośrednio</em>, nie tylko jako proxy dla agentów.
+        </div>
+        <p class="opt-hint">
+          Włącz dostawców których używasz i wklej klucze. Włączone pojawią się jako kafelki na DASHBOARD.<br>
+          Klucze trzymane lokalnie w <code id="keys-file-path">data/api-keys.json</code> w czystym tekście — backup tego pliku to backup Twoich kluczy.<br>
+          Zmienne środowiskowe (<code>ANTHROPIC_API_KEY</code> itp.) mają pierwszeństwo nad plikiem.
+        </p>
+      </div>
+      <div id="opt-list" class="opt-list"></div>
+
+      <div class="opt-head" style="margin-top:32px">
+        <h2>CONNECTIVITY · OLLAMA HOST + NETWORK FOLDERS</h2>
+        <p class="opt-hint">
+          Domyślnie brain używa <strong>lokalnego Ollama</strong> (127.0.0.1:11434).
+          Jeśli masz GPU na innej maszynie albo serwerze NAS — wpisz URL i wszystkie LLM-y zaczną iść tam.<br>
+          SMB mount = sieciowy folder na sprawy (np. <code>\\nas\sprawy</code>). Domowy serwer plików zamiast lokalnego dysku.<br>
+          <em>Hasło SMB szyfrowane przez Windows DPAPI — działa tylko na koncie użytkownika który je zapisał.</em>
+        </p>
+      </div>
+      <div class="opt-connectivity">
+        <div class="opt-row">
+          <label class="opt-label">Ollama URL</label>
+          <input id="opt-ollama-url" type="text" class="opt-input"
+                 placeholder="http://127.0.0.1:11434">
+          <button class="opt-btn" id="opt-ollama-test">TEST</button>
+          <span class="opt-status" id="opt-ollama-status">—</span>
+        </div>
+        <div class="opt-row" style="margin-top:14px">
+          <button class="opt-btn primary" id="opt-conn-save">💾 ZAPISZ</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- CHAT WIDGET -->
+  <div id="chat" class="chat collapsed">
+    <button id="chat-toggle" class="chat-toggle" title="chat with local model">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      </svg>
+    </button>
+    <div class="chat-panel">
+      <div class="chat-head">
+        <div class="chat-head-left">
+          <span class="chat-title">CHAT</span>
+          <select id="chat-model" class="chat-model-pick"></select>
+        </div>
+        <div class="chat-head-right">
+          <button id="chat-new"    class="chat-icon-btn" title="new conversation (clears history)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button id="chat-save"   class="chat-icon-btn" title="save conversation to vault">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          </button>
+          <button id="chat-copy"   class="chat-icon-btn" title="copy last response">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+          </button>
+          <button id="chat-expand" class="chat-icon-btn" title="expand / shrink panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+          </button>
+          <button id="chat-close" class="chat-icon-btn" title="close (model stays loaded)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div id="chat-msgs" class="chat-msgs"></div>
+      <div id="chat-resizer" class="chat-resizer" title="przeciągnij góra/dół żeby zmienić proporcje (tylko w trybie expand)"></div>
+      <div class="chat-brain-bar" id="chat-brain-bar" title="brain integration (widoczne w trybie expand)">
+        <button class="chat-brain-btn" data-prefill="brain-rag.get_user_profile
+Przeczytaj mój profil i potwierdź co już wiesz o mnie.">👤 get profile</button>
+        <button class="chat-brain-btn" data-prefill="brain-rag.search_library query=&quot;&quot; top_k=5
+Pokaż top wyniki z cytatami. Mieszaj vault (notatki) + library (książki).">🔍 search brain</button>
+        <button class="chat-brain-btn" data-prefill="brain-rag.get_skill(&quot;&quot;)
+Wczytaj pełną ekspercką wiedzę dla tego tematu i zastosuj ją w tej sesji.">🧠 get skill</button>
+        <button class="chat-brain-btn" data-prefill="brain-rag.run_skill name=&quot;trading-digest&quot;">⚡ skill</button>
+        <button class="chat-brain-btn" data-prefill="brain-rag.search_code query=&quot;&quot; top_k=8">💻 search code</button>
+        <button class="chat-brain-btn" data-prefill="brain-rag.save_conversation
+- source: &quot;chat-widget&quot;
+- topic: &quot;&quot;
+- summary: &quot;&quot;
+- decisions: []
+- solutions: []
+- facts: []
+- open_questions: []
+- msg_count: 0">💾 save chat</button>
+        <button class="chat-brain-btn" data-action="cheat">📋 cheat sheet</button>
+        <button class="chat-brain-btn" data-action="recent">📂 recent notes</button>
+      </div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" rows="2" placeholder="ask local model… (Enter=send, Shift+Enter=newline, /clear, /save)"></textarea>
+        <button id="chat-send" class="chat-send">SEND</button>
+        <button id="chat-stop" class="chat-stop hidden" title="stop generation">STOP</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footbar">
+    <span>brain v0.3</span>
+    <span id="last-update">never</span>
+  </footer>
+
+  <script src="app.js?v=20260527v3"></script>
+</body>
+</html>

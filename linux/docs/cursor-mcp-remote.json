@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "brain-vault": {
+      "url": "http://YOUR_SERVER_IP:7862/servers/brain-vault/sse"
+    },
+    "brain-library": {
+      "url": "http://YOUR_SERVER_IP:7862/servers/brain-library/sse"
+    },
+    "brain-rag": {
+      "url": "http://YOUR_SERVER_IP:7862/sse"
+    }
+  }
+}

@@ -1,0 +1,18 @@
+[Unit]
+Description=Brain AI Hub — MCP SSE Gateway (supergateway)
+After=network.target brain-dashboard.service
+Wants=brain-dashboard.service
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+WorkingDirectory=@REPO@
+Environment=NODE_ENV=production
+Environment=OLLAMA_HOST=127.0.0.1:11434
+ExecStart=/usr/bin/npx -y supergateway --multiServerConfig @REPO@/linux/mcp-multi-server.json --port @MCP_PORT@ --outputTransport sse --ssePath /sse --messagePath /message
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

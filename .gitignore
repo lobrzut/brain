@@ -1,0 +1,82 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+.cursor/
+.claude/
+.codegraph/
+*.tmp
+*.bak
+*.swp
+
+# Runtime (machine-local)
+logs/
+*.pid
+*.log
+fcc.log
+claude_log_dump.txt
+
+# Portable runtimes (installed by windows/install.ps1)
+bin/
+
+# User data — NEVER publish
+data/api-keys.json
+data/api-usage.json
+data/api-thresholds.json
+data/note-quality.json
+data/schedule-config.json
+data/schedule-log.json
+data/distill-status.json
+data/redistill-status.json
+data/dedup-dismissed.json
+data/dedup-candidates.json
+data/tray.heartbeat
+data/agent-configs-backup/
+data/agent-system-prompt.md
+data/backups/
+data/brain-raw/
+data/ollama-models/
+data/vectordb/
+data/cases/
+data/options.json
+data/code-status.json
+data/idle-config.json
+data/rag-status.json
+data/library/*
+!data/library/.gitkeep
+data/vault/distilled/
+data/vault/sessions/
+data/vault/digests/
+data/vault/notes/
+data/vault/chats/
+data/vault/USER.md
+!data/vault/USER.example.md
+!data/vault/.gitkeep
+
+# Local config (generated on install)
+config.json
+locale.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+
+# Dev / scratch (not part of product)
+temp_skills/
+temp_skills_cyber/
+scratch_*.py
+test_err.py
+test_fastapi*.py
+dump_log.py
+create_skills.py
+create_more_skills.py
+tesseract_setup.exe
+
+# Windows setup generator output (lives outside repo)
+../brain-setup.ps1

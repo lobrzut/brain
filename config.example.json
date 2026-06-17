@@ -1,0 +1,23 @@
+{
+  "version": "0.5.0",
+  "edition": "windows",
+  "root": "C:\\path\\to\\brain",
+  "ollama_port": 11434,
+  "dashboard_port": 7860,
+  "mcp_gateway_port": 7862,
+  "default_model": "qwen2.5:14b",
+  "gpu": {
+    "Vendor": "amd",
+    "Name": "GPU",
+    "VramMB": 0,
+    "Cuda": false,
+    "HipSdk": false,
+    "HipPath": null
+  },
+  "services": [
+    { "title": "Ollama", "url": "http://127.0.0.1:11434", "id": "ollama", "icon": "ollama" },
+    { "title": "Vault", "url": null, "id": "vault", "icon": "vault" },
+    { "title": "Vector DB", "url": null, "id": "vectordb", "icon": "db" },
+    { "title": "Knowledge Graph", "url": "/graph", "id": "graph", "icon": "graph" }
+  ]
+}
