@@ -36,12 +36,12 @@ Self-hosted personal AI platform: local LLM (Ollama), knowledge vault, semantic 
 Technologies: Python, FastAPI, Ollama, MCP, sqlite-vec, PowerShell, systemd
 ```
 
-## Featured links (order)
+## Featured links — Brain only
 
 1. https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4
 2. https://github.com/lobrzut/brain
-3. https://github.com/lobrzut/ai-studio
-4. https://github.com/lobrzut/netdash
+
+(Separate repos: ai-studio and netdash — do not mix screenshots or copy with Brain.)
 
 ## Post draft (EN)
 
@@ -59,7 +59,7 @@ Two editions: portable folder (Install.bat) and Linux server (curl | bash).
 Repo: github.com/lobrzut/brain
 ```
 
-Attach: `docs/screenshots/dashboard-home.png`
+Attach: `brain/docs/screenshots/dashboard-home.png` (BRAIN AI HUB UI — not AI Studio)
 
 ## Post draft — dev.to article (EN)
 

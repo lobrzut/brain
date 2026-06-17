@@ -63,6 +63,4 @@ cd brain
 
 Open `http://127.0.0.1:7860`, connect MCP from the Tools tab, drop a PDF in the library, run a distill job on an old chat export.
 
-Related homelab projects: [AI Studio](https://github.com/lobrzut/ai-studio) (ComfyUI + ACE-Step) and [NetDash](https://github.com/lobrzut/netdash) (LAN service dashboard).
-
-Feedback and issues welcome on GitHub.
+Feedback and issues welcome on [GitHub](https://github.com/lobrzut/brain).
