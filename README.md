@@ -1,5 +1,9 @@
 ﻿# Brain AI Hub
 
+> **This repo is Brain only** — second brain with Ollama, vault, RAG, and MCP (`:7860`).
+> Not [AI Studio](https://github.com/lobrzut/ai-studio) (ComfyUI/ACE-Step, `:7880`) or [NetDash](https://github.com/lobrzut/netdash) (homelab dashboard, `:18787`).
+> Full comparison: [docs/HOMELAB-PROJECTS.md](docs/HOMELAB-PROJECTS.md)
+
 [![Dashboard demo](docs/screenshots/dashboard-demo.gif)](https://github.com/lobrzut/brain)
 
 Portable **personal AI platform** — local LLM, knowledge vault, RAG, transcript distillation, and MCP integration for Claude Code, Cursor, and other agents.

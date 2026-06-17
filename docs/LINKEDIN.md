@@ -2,6 +2,16 @@
 
 Profile language: **English**. No emoji in About — reads more natural.
 
+## Three projects (do not mix)
+
+| Project | Repo | One line | Port | Screenshot |
+|---------|------|----------|------|------------|
+| **Brain AI Hub** | github.com/lobrzut/brain | Ollama, vault, RAG, MCP for Cursor/Claude | `:7860` | `brain/docs/screenshots/dashboard-home.png` |
+| **AI Studio** | github.com/lobrzut/ai-studio | ComfyUI + ACE-Step creative hub | `:7880` | `ai-studio/docs/screenshots/dashboard-home.png` |
+| **NetDash** | github.com/lobrzut/netdash | Homelab services dashboard + LAN scan | `:18787` | `netdash/docs/screenshots/dashboard.png` |
+
+Full table: `brain/docs/HOMELAB-PROJECTS.md`
+
 ## Headline
 
 ```
@@ -13,13 +23,13 @@ IT & cybersec admin | Self-hosted AI (Brain, AI Studio, NetDash) | Homelab · MC
 ```
 IT and cybersecurity administration — infrastructure, automation, and day-to-day security operations.
 
-On the side I build self-hosted AI platforms in my homelab:
+On the side I build three separate self-hosted projects in my homelab (different repos, different dashboards):
 
-Brain AI Hub (github.com/lobrzut/brain) — portable second brain with Ollama, vault, RAG, transcript distillation, and MCP for Cursor and Claude Code. Windows portable edition and Linux server.
+Brain AI Hub (github.com/lobrzut/brain) — second brain: Ollama, vault, RAG, transcript distillation, MCP for Cursor and Claude Code. Dashboard :7860.
 
-AI Studio — ComfyUI, ACE-Step, bilingual dashboard (github.com/lobrzut/ai-studio)
+AI Studio (github.com/lobrzut/ai-studio) — creative stack: ComfyUI + ACE-Step, bilingual hub. Dashboard :7880. Not Brain.
 
-NetDash — homelab dashboard with LAN auto-discovery (github.com/lobrzut/netdash)
+NetDash (github.com/lobrzut/netdash) — homelab dashboard: services, health checks, keys, LAN discovery. Port :18787. Not Brain or AI Studio.
 
 Stack I work with regularly: MikroTik, UniFi, WireGuard, Docker, AMD ROCm, Python, PowerShell.
 

@@ -51,7 +51,11 @@ data/
 - Automated vault sync (git/Syncthing) wizard in UI
 - Publish `brain-setup.ps1` generator as optional fat installer
 
-## Related repos
+## Related repos (separate products)
 
-- [ai-studio](https://github.com/lobrzut/ai-studio) — ComfyUI + ACE-Step creative stack
-- [netdash](https://github.com/lobrzut/netdash) — homelab service dashboard
+See [HOMELAB-PROJECTS.md](HOMELAB-PROJECTS.md) for ports, screenshots, and posting rules.
+
+| Project | Repo | Role |
+|---------|------|------|
+| AI Studio | [ai-studio](https://github.com/lobrzut/ai-studio) | ComfyUI + ACE-Step creative stack (`:7880`) |
+| NetDash | [netdash](https://github.com/lobrzut/netdash) | Homelab service dashboard (`:18787`) |
