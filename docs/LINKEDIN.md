@@ -1,28 +1,29 @@
-# LinkedIn — ready-to-paste texts (PL)
+# LinkedIn — ready-to-paste texts (EN)
 
-Use after publishing [github.com/lobrzut/brain](https://github.com/lobrzut/brain).
+Profile language: **English**. No emoji in About — reads more natural.
 
 ## Headline
 
 ```
-SRE & Azure IAM | Self-hosted AI (Brain, AI Studio, NetDash) | Homelab · MCP · FastAPI
+IT & cybersec admin | Self-hosted AI (Brain, AI Studio, NetDash) | Homelab · MCP · FastAPI
 ```
 
-## About (PL)
+## About
 
 ```
-IT i cyberbezpieczeństwo — Azure Identity (Entra ID, SCIM, Terraform) w pracy.
-Po godzinach buduję self-hosted platformy AI w homelabie:
+IT and cybersecurity administration — infrastructure, automation, and day-to-day security operations.
 
-🧠 Brain AI Hub (github.com/lobrzut/brain) — portable second brain: Ollama, vault, RAG, destylacja transkryptów, MCP dla Cursor/Claude Code. Windows portable + Linux server.
+On the side I build self-hosted AI platforms in my homelab:
 
-🎨 AI Studio — ComfyUI + ACE-Step + dashboard PL/EN (github.com/lobrzut/ai-studio)
+Brain AI Hub (github.com/lobrzut/brain) — portable second brain with Ollama, vault, RAG, transcript distillation, and MCP for Cursor and Claude Code. Windows portable edition and Linux server.
 
-📡 NetDash — homelab dashboard z auto-discovery LAN (github.com/lobrzut/netdash)
+AI Studio — ComfyUI, ACE-Step, bilingual dashboard (github.com/lobrzut/ai-studio)
 
-Stack: MikroTik, UniFi, WireGuard, Docker, AMD ROCm. Bug bounty (HackerOne VDP).
+NetDash — homelab dashboard with LAN auto-discovery (github.com/lobrzut/netdash)
 
-Szukam projektów remote/async — cloud/SRE + applied GenAI.
+Stack I work with regularly: MikroTik, UniFi, WireGuard, Docker, AMD ROCm, Python, PowerShell.
+
+Open to remote/async work — infrastructure, automation, applied GenAI.
 ```
 
 ## Project entry — Brain
@@ -41,18 +42,20 @@ Technologies: Python, FastAPI, Ollama, MCP, sqlite-vec, PowerShell, systemd
 2. https://github.com/lobrzut/ai-studio
 3. https://github.com/lobrzut/netdash
 
-## Post draft (PL)
+## Post draft (EN)
 
 ```
-Opublikowałem Brain AI Hub — self-hosted "second brain" pod homelab i portable Windows.
+Shipped Brain AI Hub — a self-hosted second brain for homelab and portable Windows.
 
-Co robi:
-• lokalny LLM (Ollama + GPU)
-• vault + RAG po PDF/EPUB i notatkach z rozmów AI
-• MCP dla Cursora i Claude Code (pamięć między sesjami)
-• destylacja transkryptów → markdown do Obsidian
+What it does:
+- Local LLM (Ollama + GPU)
+- Vault + RAG over PDFs/EPUBs and AI chat notes
+- MCP for Cursor and Claude Code (memory across sessions)
+- Transcript distillation into Obsidian-friendly markdown
 
-Dwie edycje: folder portable (Install.bat) i Linux server (curl | bash).
+Two editions: portable folder (Install.bat) and Linux server (curl | bash).
 
 Repo: github.com/lobrzut/brain
 ```
+
+Attach: `docs/screenshots/dashboard-home.png`

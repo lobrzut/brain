@@ -1,5 +1,7 @@
 ﻿# Brain AI Hub
 
+[![Dashboard demo](docs/screenshots/dashboard-demo.gif)](https://github.com/lobrzut/brain)
+
 Portable **personal AI platform** — local LLM, knowledge vault, RAG, transcript distillation, and MCP integration for Claude Code, Cursor, and other agents.
 
 | Edition | Target | Install |
