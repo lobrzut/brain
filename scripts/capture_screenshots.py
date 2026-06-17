@@ -21,7 +21,12 @@ def capture() -> None:
         page = browser.new_page(viewport=vp)
         page.goto(BASE, wait_until="domcontentloaded", timeout=30000)
         page.wait_for_selector(".topbar", timeout=30000)
-        page.wait_for_timeout(3000)
+        # Dashboard tiles render after async refresh() (status + quality + agents)
+        page.wait_for_function(
+            """() => document.querySelectorAll('#view-dashboard #grid .tile').length >= 5""",
+            timeout=120000,
+        )
+        page.wait_for_timeout(1500)
         page.screenshot(path=str(OUT / "dashboard-home.png"), full_page=False)
 
         page.click('button.tab[data-view="brain"]')
@@ -38,6 +43,13 @@ def capture() -> None:
         page.screenshot(path=str(OUT / "dashboard-brain.png"), full_page=False)
 
         page.click('button.tab[data-view="pipeline"]')
+        page.wait_for_function(
+            """() => {
+              const el = document.querySelector('#distill-sources');
+              return el && !/loading/i.test(el.textContent || '');
+            }""",
+            timeout=60000,
+        )
         page.wait_for_timeout(1500)
         page.screenshot(path=str(OUT / "dashboard-pipeline.png"), full_page=False)
 
