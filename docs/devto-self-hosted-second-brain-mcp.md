@@ -1,6 +1,7 @@
 ---
 title: Self-hosted second brain with MCP
-published: false
+published: true
+canonical_url: https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4
 description: Brain AI Hub — local Ollama, vault, RAG, and MCP servers for Cursor and Claude Code. Windows portable or Linux homelab install.
 tags: mcp, ollama, homelab, rag, selfhosted, ai
 cover_image: https://raw.githubusercontent.com/lobrzut/brain/main/docs/screenshots/dashboard-home.png

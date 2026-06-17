@@ -38,9 +38,10 @@ Technologies: Python, FastAPI, Ollama, MCP, sqlite-vec, PowerShell, systemd
 
 ## Featured links (order)
 
-1. https://github.com/lobrzut/brain
-2. https://github.com/lobrzut/ai-studio
-3. https://github.com/lobrzut/netdash
+1. https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4
+2. https://github.com/lobrzut/brain
+3. https://github.com/lobrzut/ai-studio
+4. https://github.com/lobrzut/netdash
 
 ## Post draft (EN)
 
@@ -59,3 +60,14 @@ Repo: github.com/lobrzut/brain
 ```
 
 Attach: `docs/screenshots/dashboard-home.png`
+
+## Post draft — dev.to article (EN)
+
+```
+Published a walkthrough of Brain AI Hub on DEV:
+
+Self-hosted second brain with MCP — local Ollama, vault + RAG, transcript distillation, and MCP hooks for Cursor and Claude Code. Windows portable edition and Linux homelab server.
+
+Article: dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4
+Repo: github.com/lobrzut/brain
+```

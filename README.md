@@ -4,6 +4,8 @@
 
 Portable **personal AI platform** — local LLM, knowledge vault, RAG, transcript distillation, and MCP integration for Claude Code, Cursor, and other agents.
 
+Write-up: [Self-hosted second brain with MCP](https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4) (DEV Community)
+
 | Edition | Target | Install |
 |---------|--------|---------|
 | **Windows** | Portable folder, USB-copyable, AMD ROCm / Vulkan | `Install.bat` → `Start.bat` |
