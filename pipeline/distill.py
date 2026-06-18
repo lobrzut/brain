@@ -240,7 +240,7 @@ def parse_claude_jsonl(path: Path) -> dict | None:
     if len(messages) < 2:
         return None
     # Project name: path.parent.name is a slashes-replaced workspace dir
-    # like "C--Users-helluk-claude" — useless for the user. Try to derive
+    # like "C--Users-name-claude" — useless for the user. Try to derive
     # a human topic from the FIRST user message instead.
     project = path.parent.name
     first_user = next((m for m in messages if m.get("role") == "user"), None)
@@ -998,105 +998,6 @@ def _call_claude_haiku(transcript: str) -> dict:
         return {"error": f"Claude API: {e}"}
 
 
-def _call_deepseek_api(transcript: str) -> dict:
-    import json as _json
-    keys_file = DATA / "api-keys.json"
-    api_key = None
-    if keys_file.exists():
-        try:
-            d = _json.loads(keys_file.read_text(encoding="utf-8"))
-            api_key = (d.get("deepseek") or {}).get("key")
-        except Exception: pass
-    if not api_key:
-        import os
-        api_key = os.environ.get("DEEPSEEK_API_KEY")
-    if not api_key:
-        return {"error": "no DeepSeek API key — paste in OPTIONS or set DEEPSEEK_API_KEY"}
-
-    system = ("You are a strict structured distiller. Read the conversation, extract:\n"
-              "- decisions: concrete choices made (list of strings)\n"
-              "- solutions: working code, commands, configs (list of strings)\n"
-              "- facts: claims verified, behaviors learned (list of strings)\n"
-              "- questions: open questions still unanswered (list of strings)\n"
-              "Respond ONLY with valid JSON of this shape. No prose around it.")
-    try:
-        r = requests.post(
-            "https://api.deepseek.com/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": transcript[:50000]}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.2
-            },
-            timeout=120,
-        )
-        r.raise_for_status()
-        text = r.json()["choices"][0]["message"]["content"]
-        if text.startswith("```"):
-            text = "\n".join(text.splitlines()[1:-1])
-        return _json.loads(text)
-    except Exception as e:
-        return {"error": f"DeepSeek API: {e}"}
-
-
-def _call_openrouter_api(transcript: str, model_name: str) -> dict:
-    import json as _json
-    keys_file = DATA / "api-keys.json"
-    api_key = None
-    if keys_file.exists():
-        try:
-            d = _json.loads(keys_file.read_text(encoding="utf-8"))
-            api_key = (d.get("openrouter") or {}).get("key")
-        except Exception: pass
-    if not api_key:
-        import os
-        api_key = os.environ.get("OPENROUTER_API_KEY")
-    if not api_key:
-        return {"error": "no OpenRouter API key — paste in OPTIONS or set OPENROUTER_API_KEY"}
-
-    # Strip 'openrouter/' prefix if user provided it
-    if model_name.startswith("openrouter/"):
-        model_name = model_name[11:]
-
-    system = ("You are a strict structured distiller. Read the conversation, extract:\n"
-              "- decisions: concrete choices made (list of strings)\n"
-              "- solutions: working code, commands, configs (list of strings)\n"
-              "- facts: claims verified, behaviors learned (list of strings)\n"
-              "- questions: open questions still unanswered (list of strings)\n"
-              "Respond ONLY with valid JSON of this shape. No prose around it.")
-    try:
-        r = requests.post(
-            "https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "HTTP-Referer": "http://localhost:8000",
-                "X-Title": "brain-distiller",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": model_name,
-                "messages": [
-                    {"role": "system", "content": system},
-                    {"role": "user", "content": transcript[:50000]}
-                ],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.2
-            },
-            timeout=120,
-        )
-        r.raise_for_status()
-        text = r.json()["choices"][0]["message"]["content"]
-        if text.startswith("```"):
-            text = "\n".join(text.splitlines()[1:-1])
-        return _json.loads(text)
-    except Exception as e:
-        return {"error": f"OpenRouter API: {e}"}
-
-
 def _call_model(transcript: str, model: str) -> dict:
     user_msg = DISTILL_USER.replace("{transcript}", transcript)
     r = requests.post(
@@ -1171,8 +1072,6 @@ def distill_session(session: dict, model: str) -> dict:
 
     # Provider switch
     is_claude = model.startswith("claude") or model.startswith("anthropic")
-    is_deepseek_api = model in ("deepseek-chat", "deepseek-reasoner")
-    is_openrouter = model.startswith("openrouter/")
 
     # Build overlapping chunks
     chunks = []
@@ -1194,10 +1093,6 @@ def distill_session(session: dict, model: str) -> dict:
             transcript = _format_chunk(chunk)
             if is_claude:
                 result = _call_claude_haiku(transcript)
-            elif is_deepseek_api:
-                result = _call_deepseek_api(transcript)
-            elif is_openrouter:
-                result = _call_openrouter_api(transcript, model)
             else:
                 result = _call_model(transcript, model)
                 
@@ -1212,8 +1107,6 @@ def distill_session(session: dict, model: str) -> dict:
         return {"error": f"all chunks failed: {errors[0]}"}
     merged["_chunks"] = len(chunks)
     return merged
-
-
 
 
 def write_note(session: dict, distilled: dict, out_dir: Path) -> Path | None:

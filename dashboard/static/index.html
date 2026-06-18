@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>BRAIN</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20260527v3">
+  <link rel="stylesheet" href="style.css?v=20260618a">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <!-- Pin to UMD build that exposes window.THREE (Cosmos theme needs it).
        Newer 3d-force-graph (1.7+) bundles its own ES-modular three internally,
@@ -60,7 +60,7 @@
         <span class="workflow-title">🧠 BRAIN AGENT WORKFLOW</span>
         <span class="workflow-sub">kliknij kafelek → kopiuje prompt → wklej do dowolnego agenta z brain MCP</span>
         <button class="opt-btn panic-btn" id="panic-btn"
-                title="🚨 Stop ALL: pauzuje scheduler, zabija subprocesy (distill/redistill/rag/codeindex/fcc), unloaduje wszystkie modele z VRAM. Użyj gdy musisz natychmiast oddać GPU/CPU pod inne zadanie.">🚨 PANIC — STOP ALL + FREE GPU</button>
+                title="🚨 Stop ALL: pauzuje scheduler, zabija subprocesy (distill/redistill/rag/codeindex), unloaduje wszystkie modele z VRAM. Użyj gdy musisz natychmiast oddać GPU/CPU pod inne zadanie.">🚨 PANIC — STOP ALL + FREE GPU</button>
         <button class="workflow-toggle" id="workflow-toggle" title="zwiń / rozwiń">▾</button>
       </div>
       <div class="workflow-grid">
@@ -94,7 +94,7 @@ Uwaga: ranking brain promuje nowsze i większe notatki — jeśli widzisz notatk
           <div class="workflow-desc">Pojawi się na grafie, inne agenty znajdą</div>
           <pre class="workflow-prompt" id="wf-prompt-end">Zapisz tę rozmowę do brain używając brain-rag.save_conversation.
 Wyciągnij jako parametry:
-- source: "antigravity" (lub claude-desktop / claude-code / claude-free / cursor / vscode / windsurf / antigravity-cli)
+- source: "antigravity" (lub claude-desktop / claude-code / cursor / vscode / windsurf / antigravity-cli)
 - topic: krótki tytuł
 - summary: 2-3 zdania
 - decisions: lista konkretnych decyzji
@@ -350,7 +350,8 @@ Podaj ścieżkę pliku.</pre>
           Pozostałe agenty (Cursor, Desktop, Antigravity) mają dostęp przez <code>brain-rag.get_skill("nazwa")</code> i <code>brain-rag.list_cli_skills</code>.
           <span style="color:#ff8844">⚠ Zapis tylko ręcznie</span> — brain-vault MCP nie ma dostępu do <code>~/.claude/</code>.
         </div>
-        <div id="cli-skills-list" class="skills-list">loading…</div>
+        <input id="cli-skills-search" class="cli-skills-search" type="text" placeholder="🔍 filtruj skille (nazwa / opis)…" autocomplete="off">
+        <div id="cli-skills-list" class="cli-skills-compact">loading…</div>
       </section>
 
       <!-- AGENTIC SKILLS — brain/skills/, dostępne przez brain-rag.run_skill + Claude może tu pisać -->
@@ -858,7 +859,7 @@ używając tylko faktów z notatek.</pre>
 
         <section id="i-opt" class="ins-section">
           <h2>ZAKŁADKA OPTIONS</h2>
-          <p>Zarządzanie kluczami API dla 6 dostawców: Claude, OpenAI, Gemini, Grok, DeepSeek, OpenRouter.</p>
+          <p>Zarządzanie kluczami API dla 5 dostawców: Claude, OpenAI, Gemini, Grok, OpenRouter.</p>
           <p>Per wiersz: ikona, nazwa, stan (env / file / no key), input password, toggle, SAVE, TEST.</p>
           <ol>
             <li>Wklej klucz w input</li>
@@ -1036,7 +1037,6 @@ Model    : qwen2.5-coder:14b</pre>
             <tr><td>OpenAI</td><td><code>api.openai.com/v1/chat/completions</code></td><td><code>127.0.0.1:7860/proxy/openai/v1/chat/completions</code></td></tr>
             <tr><td>Gemini</td><td><code>generativelanguage.googleapis.com/v1beta/...</code></td><td><code>127.0.0.1:7860/proxy/google/v1beta/...</code></td></tr>
             <tr><td>Grok</td><td><code>api.x.ai/v1/...</code></td><td><code>127.0.0.1:7860/proxy/xai/v1/...</code></td></tr>
-            <tr><td>DeepSeek</td><td><code>api.deepseek.com/v1/...</code></td><td><code>127.0.0.1:7860/proxy/deepseek/v1/...</code></td></tr>
             <tr><td>OpenRouter</td><td><code>openrouter.ai/api/v1/...</code></td><td><code>127.0.0.1:7860/proxy/openrouter/api/v1/...</code></td></tr>
           </table>
           <h3>Przykład: Anthropic SDK</h3>
@@ -1370,14 +1370,9 @@ __pycache__/</pre>
       <div class="opt-head">
         <h2>API PROVIDERS</h2>
         <div class="opt-warning">
-          <strong>Status: częściowo używane</strong><br>
-          ✅ <strong>Anthropic</strong> — aktywne. Używamy <code>claude-haiku-4-5</code> w destylacji
-          (alternatywa dla lokalnego Ollama, wybierasz w schedulerze) i w analizie spraw (CASES → model).<br>
-          ⚙ <strong>OpenAI / Google / xAI / DeepSeek / OpenRouter</strong> — klucze trzymane na zapas,
-          ale brain ich jeszcze <strong>nie woła</strong>. Plan: provider per skill, re-destylacja przez DeepSeek
-          ($1.50 vs 14h lokalnie), chat dropdown z wyborem providera.<br>
-          Klucze masz i tak w configach agentów (Claude Desktop / Antigravity) — tutaj trzymamy je
-          centralnie żeby aplikacja brain mogła ich używać <em>bezpośrednio</em>, nie tylko jako proxy dla agentów.
+          <strong>Status:</strong> brain używa wyłącznie <strong>Claude</strong> (<code>claude-haiku-4-5</code>)
+          — i to tylko opcjonalnie, jako płatna alternatywa dla lokalnego Ollama w destylacji (wybierasz w schedulerze).
+          Bez żadnego klucza brain działa w 100% lokalnie na Ollama.
         </div>
         <p class="opt-hint">
           Włącz dostawców których używasz i wklej klucze. Włączone pojawią się jako kafelki na DASHBOARD.<br>
@@ -1478,6 +1473,6 @@ Wczytaj pełną ekspercką wiedzę dla tego tematu i zastosuj ją w tej sesji.">
     <span id="last-update">never</span>
   </footer>
 
-  <script src="app.js?v=20260527v3"></script>
+  <script src="app.js?v=20260618a"></script>
 </body>
 </html>

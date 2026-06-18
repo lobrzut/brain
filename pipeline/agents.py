@@ -139,43 +139,6 @@ KNOWN_AGENTS: list[dict] = [
         "restart_hint":  "VS Code → Ctrl+Shift+P → 'MCP: List Servers' → uruchom każdy 'Start Server', albo restart VS Code.",
     },
 
-    {
-        "id":      "claude-free",
-        "label":   "Free Claude Code (proxy)",
-        "icon":    "🦝",
-        # free-claude-code (github.com/Alishahryar1/free-claude-code) is a local
-        # FastAPI proxy that intercepts Claude Code CLI → routes to free providers
-        # (OpenRouter, Gemini, NVIDIA NIM, DeepSeek, Mistral …).
-        #
-        # How it works:
-        #   fcc-server   — proxy on http://127.0.0.1:8082  (Admin UI: /admin)
-        #   fcc-claude   — wrapper: sets ANTHROPIC_BASE_URL + runs real `claude`
-        #
-        # MCP config: identical to claude-code (~/.claude.json) because fcc-claude
-        # just calls the real `claude` binary with env vars set. No separate MCP file.
-        "configs": [HOME / ".claude.json"],
-        "install_hints": [
-            # uv tool install free-claude-code  (most common)
-            APPDATA / "uv" / "tools" / "free-claude-code",
-            LOCAL   / "uv" / "tools" / "free-claude-code",
-            HOME    / ".local" / "share" / "uv" / "tools" / "free-claude-code",
-            # pip install → Scripts\fcc-server.exe
-            LOCAL   / "Programs" / "Python" / "Scripts" / "fcc-server.exe",
-            APPDATA / "Python" / "Scripts" / "fcc-server.exe",
-            # pipx install
-            HOME    / ".local" / "bin" / "fcc-server",
-            LOCAL   / "pipx" / "venvs" / "free-claude-code",
-        ],
-        "restart_hint": (
-            "Zatrzymaj fcc-server (Ctrl+C w terminalu gdzie działa) i uruchom ponownie: fcc-server\n"
-            "Admin UI: http://127.0.0.1:8082/admin\n"
-            "Uruchamianie Claude przez proxy: fcc-claude (zamiast claude)"
-        ),
-        # Extra metadata used by dashboard to show proxy status + link
-        "proxy_url":  "http://127.0.0.1:8082",
-        "admin_url":  "http://127.0.0.1:8082/admin",
-        "install_cmd": "irm \"https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1\" | iex",
-    },
 ]
 
 
@@ -246,17 +209,6 @@ def detect(agent_id: str) -> dict:
         "restart_hint": spec.get("restart_hint", ""),
         "format":       fmt,
     }
-    # Special: for free-claude-code, 'installed' should reflect whether fcc-server
-    # binary is present — not whether the config file exists (config is shared with
-    # claude-code so it always exists). This lets the dashboard show an INSTALL button.
-    if spec["id"] == "claude-free":
-        import shutil
-        fcc_found = bool(shutil.which("fcc-server")) or any(
-            p.exists() for p in spec.get("install_hints", [])
-        )
-        result["fcc_binary_found"] = fcc_found
-        result["installed"]  = fcc_found   # card uses this to toggle INSTALL vs CONFIGURE
-        result["mcp_wired"]  = (status == "wired")  # keep real MCP status accessible
     return result
 
 
@@ -388,8 +340,6 @@ SYSTEM_PROMPT_TARGETS: dict[str, list[Path]] = {
     "claude-code":     [HOME / ".claude" / "CLAUDE.md"],
     "cursor":          [],  # Handled dynamically in deploy_system_prompt
     "antigravity-cli": [HOME / ".antigravity-cli" / "AGENTS.md"],
-    "claude-free":     [HOME / ".claude-free" / "INSTRUCTIONS.md",
-                        HOME / ".claude-memory" / "INSTRUCTIONS.md"],
     # Note: VS Code / Antigravity (IDE) / Windsurf don't have a standard global system-prompt file.
     # For those, user pastes the brain workflow ribbon prompts manually OR uses workspace files.
 }

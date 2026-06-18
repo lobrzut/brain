@@ -7,7 +7,7 @@ output_file: vault/USER.md
 
 # ZADANIE: Zaktualizuj profil użytkownika
 
-Przeanalizuj poniższe streszczenia sesji i zaktualizuj profil użytkownika helluk.
+Przeanalizuj poniższe streszczenia sesji i zaktualizuj profil użytkownika.
 
 ## AKTUALNY PROFIL (vault/USER.md):
 {{ user_profile }}

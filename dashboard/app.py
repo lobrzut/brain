@@ -35,7 +35,6 @@ PROVIDER_BASE = {
     "openai":     "https://api.openai.com",
     "google":     "https://generativelanguage.googleapis.com",
     "xai":        "https://api.x.ai",
-    "deepseek":   "https://api.deepseek.com",
     "openrouter": "https://openrouter.ai",
 }
 
@@ -65,19 +64,12 @@ _redistill_proc: subprocess.Popen | None = None
 # ---------------------------------------------------------------------------
 # API providers
 # ---------------------------------------------------------------------------
+# Only Claude — brain uses it (Haiku) as an optional paid alternative to local
+# Ollama for distillation. No multi-provider key vault: brain never called the
+# others; agents keep their own keys in their own configs.
 PROVIDERS: dict[str, dict[str, Any]] = {
     "anthropic":  {"title": "Claude", "url": "https://console.anthropic.com",
                    "envs": ["ANTHROPIC_API_KEY"], "icon": "claude", "hint": "sk-ant-..."},
-    "openai":     {"title": "OpenAI", "url": "https://platform.openai.com",
-                   "envs": ["OPENAI_API_KEY"], "icon": "openai", "hint": "sk-..."},
-    "google":     {"title": "Gemini", "url": "https://aistudio.google.com",
-                   "envs": ["GEMINI_API_KEY", "GOOGLE_API_KEY"], "icon": "gemini", "hint": "AIza..."},
-    "xai":        {"title": "Grok",   "url": "https://x.ai",
-                   "envs": ["XAI_API_KEY"], "icon": "grok", "hint": "xai-..."},
-    "deepseek":   {"title": "DeepSeek", "url": "https://platform.deepseek.com",
-                   "envs": ["DEEPSEEK_API_KEY"], "icon": "deepseek", "hint": "sk-..."},
-    "openrouter": {"title": "OpenRouter", "url": "https://openrouter.ai",
-                   "envs": ["OPENROUTER_API_KEY", "OR_API_KEY"], "icon": "openrouter", "hint": "sk-or-v1-..."},
 }
 
 
@@ -567,7 +559,6 @@ def api_test_key(provider: str) -> dict[str, Any]:
                            {"Authorization": f"Bearer {key}"}),
             "google":     ("GET", f"https://generativelanguage.googleapis.com/v1beta/models?key={key}", {}),
             "xai":        ("GET", "https://api.x.ai/v1/models", {"Authorization": f"Bearer {key}"}),
-            "deepseek":   ("GET", "https://api.deepseek.com/v1/models", {"Authorization": f"Bearer {key}"}),
             "openrouter": ("GET", "https://openrouter.ai/api/v1/models", {"Authorization": f"Bearer {key}"}),
         }
         method, url, headers = endpoints[provider]
@@ -2030,216 +2021,6 @@ def api_agents_remove_prompt(body: AgentRequest) -> dict[str, Any]:
         return _load_agents().undeploy_system_prompt(body.agent_id)
     except Exception as e:
         return {"ok": False, "error": str(e)}
-
-
-@app.get("/api/agents/claude-free/proxy-status")
-def api_claude_free_proxy_status() -> dict[str, Any]:
-    """Check if fcc-server (free-claude-code proxy) is alive on 127.0.0.1:8082."""
-    proxy_url = "http://127.0.0.1:8082"
-    try:
-        r = requests.get(f"{proxy_url}/health", timeout=2)
-        alive = r.status_code < 500
-        return {"alive": alive, "status_code": r.status_code, "proxy_url": proxy_url,
-                "admin_url": f"{proxy_url}/admin"}
-    except requests.exceptions.ConnectionError:
-        return {"alive": False, "error": "Connection refused — fcc-server not running",
-                "proxy_url": proxy_url, "admin_url": f"{proxy_url}/admin",
-                "start_cmd": "fcc-server"}
-    except requests.exceptions.Timeout:
-        return {"alive": False, "error": "Timeout",
-                "proxy_url": proxy_url, "admin_url": f"{proxy_url}/admin"}
-    except Exception as e:
-        return {"alive": False, "error": str(e),
-                "proxy_url": proxy_url, "admin_url": f"{proxy_url}/admin"}
-
-
-@app.get("/api/agents/claude-free/info")
-def api_claude_free_info() -> dict[str, Any]:
-    """Return free-claude-code metadata (install instructions, links)."""
-    import shutil
-    fcc_server_path = shutil.which("fcc-server")
-    fcc_claude_path  = shutil.which("fcc-claude")
-    return {
-        "repo": "https://github.com/Alishahryar1/free-claude-code",
-        "fcc_server_found": fcc_server_path is not None,
-        "fcc_server_path":  fcc_server_path,
-        "fcc_claude_found": fcc_claude_path is not None,
-        "fcc_claude_path":  fcc_claude_path,
-        "proxy_url": "http://127.0.0.1:8082",
-        "admin_url": "http://127.0.0.1:8082/admin",
-        "install_ps1": 'irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1" | iex',
-        "providers": ["nvidia_nim", "openrouter", "gemini", "deepseek", "mistral", "ollama", "lm_studio"],
-        "note": "MCP config is shared with claude-code (~/.claude.json). Deploy Brain MCP for claude-code to enable it here too.",
-    }
-
-
-@app.post("/api/agents/claude-free/install")
-def api_claude_free_install() -> dict[str, Any]:
-    """Install free-claude-code via PowerShell installer (opens new console window)."""
-    import shutil, subprocess, sys
-    if shutil.which("fcc-server"):
-        return {"ok": True, "already_installed": True,
-                "message": "fcc-server already in PATH. Run 'fcc-server' to start the proxy."}
-    install_cmd = (
-        'irm "https://github.com/Alishahryar1/free-claude-code/blob/main/scripts/install.ps1?raw=1" | iex'
-    )
-    try:
-        flags = subprocess.CREATE_NEW_CONSOLE if sys.platform == "win32" else 0
-        proc = subprocess.Popen(
-            ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", install_cmd],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            creationflags=flags,
-        )
-        return {
-            "ok": True, "pid": proc.pid,
-            "message": "Instalacja uruchomiona w nowym oknie PowerShell. Poczekaj ~60s, potem kliknij CONFIGURE aby podpiac klucze API.",
-        }
-    except Exception as e:
-        return {"ok": False, "error": str(e),
-                "manual_cmd": install_cmd,
-                "hint": "Uruchom recznie w PowerShell: " + install_cmd}
-
-
-# Track fcc-server subprocess so we can stop/restart it
-_fcc_proc: subprocess.Popen | None = None
-
-
-@app.post("/api/agents/claude-free/start")
-def api_claude_free_start() -> dict[str, Any]:
-    """Launch fcc-server as detached background process. Logs to logs/fcc-server.log."""
-    global _fcc_proc
-    import shutil
-    # Already alive?
-    try:
-        r = requests.get("http://127.0.0.1:8082/health", timeout=2)
-        if r.status_code < 500:
-            return {"ok": True, "already_running": True,
-                    "pid": _fcc_proc.pid if _fcc_proc and _fcc_proc.poll() is None else None,
-                    "message": "fcc-server juz dziala na :8082"}
-    except Exception: pass
-    exe = shutil.which("fcc-server")
-    if not exe:
-        return {"ok": False, "error": "fcc-server.exe not in PATH — kliknij INSTALL"}
-    log_path = LOGS_DIR / "fcc-server.log"
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    log_file = open(log_path, "ab")
-    try:
-        flags = 0
-        if os.name == "nt":
-            # Detached: survives dashboard restart, no new console window
-            flags = subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
-        _fcc_proc = subprocess.Popen(
-            [exe], stdout=log_file, stderr=log_file,
-            stdin=subprocess.DEVNULL, creationflags=flags,
-        )
-        _fcc_proc._brain_t0 = time.time()
-        # Wait briefly for it to bind to port
-        import time as _t
-        for _ in range(15):
-            _t.sleep(0.5)
-            try:
-                r = requests.get("http://127.0.0.1:8082/health", timeout=1)
-                if r.status_code < 500:
-                    return {"ok": True, "pid": _fcc_proc.pid, "log": str(log_path),
-                            "message": "fcc-server uruchomiony na :8082"}
-            except Exception: continue
-        return {"ok": False, "pid": _fcc_proc.pid, "log": str(log_path),
-                "error": "fcc-server uruchomiony ale nie odpowiada na :8082 po 7s — sprawdz log"}
-    except Exception as e:
-        return {"ok": False, "error": str(e)}
-
-
-@app.post("/api/agents/claude-free/stop")
-def api_claude_free_stop() -> dict[str, Any]:
-    """Stop fcc-server. Tries our tracked PID first, then falls back to taskkill on name."""
-    global _fcc_proc
-    killed: list[int] = []
-    if _fcc_proc and _fcc_proc.poll() is None:
-        try:
-            _fcc_proc.terminate()
-            try: _fcc_proc.wait(timeout=3)
-            except subprocess.TimeoutExpired: _fcc_proc.kill()
-            killed.append(_fcc_proc.pid)
-        except Exception: pass
-        _fcc_proc = None
-    # Belt + suspenders: kill any orphan fcc-server.exe (e.g. started manually)
-    if os.name == "nt":
-        try:
-            r = subprocess.run(["taskkill", "/F", "/IM", "fcc-server.exe"],
-                                capture_output=True, text=True, timeout=8,
-                                creationflags=subprocess.CREATE_NO_WINDOW)
-            if "SUCCESS" in (r.stdout or ""):
-                killed.append(-1)
-        except Exception: pass
-    return {"ok": True, "killed_count": len([k for k in killed if k != -1]),
-            "extra_killed": -1 in killed}
-
-
-@app.post("/api/agents/claude-free/configure")
-def api_claude_free_configure() -> dict[str, Any]:
-    """Push Brain API keys (OpenRouter, Gemini, DeepSeek) to fcc-server admin API."""
-    keys: dict = {}
-    if KEYS_FILE.exists():
-        try:
-            keys = json.loads(KEYS_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-
-    # Map Brain provider names -> fcc-server env vars + recommended free/cheap models
-    mapping = [
-        ("openrouter", "OPENROUTER_API_KEY", "open_router/google/gemini-2.0-flash-exp:free", "OpenRouter"),
-        ("google",     "GEMINI_API_KEY",     "gemini/gemini-2.5-flash",                       "Google Gemini"),
-        ("deepseek",   "DEEPSEEK_API_KEY",   "deepseek/deepseek-chat",                        "DeepSeek"),
-    ]
-
-    configured, skipped = [], []
-    fcc_payload: dict = {}
-    chosen_model: str | None = None
-
-    for brain_key, env_key, default_model, label in mapping:
-        provider_data = keys.get(brain_key)
-        val = ""
-        if isinstance(provider_data, dict):
-            val = str(provider_data.get("key", "")).strip()
-        elif isinstance(provider_data, str):
-            val = provider_data.strip()
-
-        if val:
-            fcc_payload[env_key] = val
-            if chosen_model is None:
-                chosen_model = default_model
-            configured.append(label)
-        else:
-            skipped.append(label)
-
-    if chosen_model:
-        fcc_payload["MODEL"] = chosen_model
-
-    pushed = False
-    push_error: str | None = None
-    if fcc_payload:
-        try:
-            r = requests.post("http://127.0.0.1:8082/admin/api/config/apply",
-                              json={"values": fcc_payload}, timeout=3)
-            pushed = r.status_code < 400
-        except Exception as exc:
-            push_error = str(exc)
-
-    return {
-        "ok": True,
-        "configured_providers": configured,
-        "skipped_providers": skipped,
-        "chosen_model": chosen_model,
-        "pushed_to_proxy": pushed,
-        "push_error": push_error,
-        "note": (
-            "Konfiguracja wgrana do fcc-server. Restart proxy aby zastosowac."
-            if pushed else
-            "fcc-server nie dziala — uruchom 'fcc-server', potem kliknij CONFIGURE ponownie."
-        ),
-    }
-
-
 @app.post("/api/schedule/set_model")
 def api_schedule_set_model(body: ScheduleModelUpdate) -> dict[str, Any]:
     """Update per-task model selection (saved in schedule-config.json)."""
@@ -2732,7 +2513,7 @@ def api_panic() -> dict[str, Any]:
     What it stops:
       - Scheduler (pauses 1h to prevent auto-restart)
       - distill subprocess + redistill subprocess + RAG reindex subprocess
-      - codeindex subprocess + skill subprocess + fcc-server
+      - codeindex subprocess + skill subprocess
       - Ollama models in VRAM (keep_alive=0 forces unload)
     """
     stopped: list[str] = []
@@ -2752,7 +2533,6 @@ def api_panic() -> dict[str, Any]:
         ("_rag_proc",       "library reindex"),
         ("_code_proc",      "code index"),
         ("_skill_proc",     "skill"),
-        ("_fcc_proc",       "fcc-server"),
     ]
     g = globals()
     for var, label in procs:
@@ -2770,7 +2550,7 @@ def api_panic() -> dict[str, Any]:
     # 3) Best-effort kill any orphan python.exe running brain pipeline scripts
     if os.name == "nt":
         for script in ("distill.py", "redistill.py", "rag.py", "codeindex.py",
-                        "note_quality.py", "fcc-server.exe"):
+                        "note_quality.py"):
             try:
                 # WMIC-style: filter by command-line contains <script>
                 ps = (f'Get-CimInstance Win32_Process | Where-Object '
@@ -2942,7 +2722,7 @@ def _net_use_cleanup(target: str) -> list[str]:
     Returns list of removed connection identifiers (for logging).
     """
     removed: list[str] = []
-    # Extract server portion: \\192.168.1.150\WindowsBackup\Sprawy → \\192.168.1.150
+    # Extract server portion: \\server\share\folder → \\server
     try:
         srv = target.replace("/", "\\")
         if not srv.startswith("\\\\"): return removed

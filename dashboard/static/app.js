@@ -11,7 +11,6 @@ const ICONS = {
   gemini: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.5 5.5c.5 1.7 1.3 2.5 3 3L22 12l-5.5 1.5c-1.7.5-2.5 1.3-3 3L12 22l-1.5-5.5c-.5-1.7-1.3-2.5-3-3L2 12l5.5-1.5c1.7-.5 2.5-1.3 3-3L12 2z"/></svg>',
   grok:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l16 16M20 4L4 20"/></svg>',
   openai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 4l8 4.5v7L12 20l-8-4.5v-7L12 4z"/><path d="M12 4v8l8 4.5M12 20v-8L4 8M12 12l8-4.5M12 12l-8 4.5"/></svg>',
-  deepseek:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13c0-4 4-7 8-7h4c3 0 6 2 6 5 0 2-2 3-3 3-1 0-1-1-2-1-2 0-3 3-7 3-3 0-6-1-6-3z"/><path d="M19 9l2-2v4"/><circle cx="10" cy="12" r="0.8" fill="currentColor"/><path d="M3 13c-1 2-1 4 1 5"/></svg>',
   openrouter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="5" r="1.5"/><circle cx="20" cy="5" r="1.5"/><circle cx="4" cy="19" r="1.5"/><circle cx="20" cy="19" r="1.5"/><path d="M5 6l5 4M19 6l-5 4M5 18l5-4M19 18l-5-4"/></svg>',
 };
 
@@ -279,7 +278,7 @@ async function refresh() {
       const pct = p.total > 0 ? Math.round((p.done / p.total) * 100) : 0;
       // Detect provider from label (model name)
       const lbl = distillJob.label || '';
-      const isCloud = /claude|haiku|deepseek|gpt|openai/i.test(lbl);
+      const isCloud = /claude|haiku|gpt|openai/i.test(lbl);
       const providerBadge = isCloud
         ? `<span style="background:rgba(255,43,214,0.15);color:var(--magenta);padding:2px 8px;border-radius:10px;font-size:10px;letter-spacing:1px">☁ CLOUD API</span>`
         : `<span style="background:rgba(0,225,255,0.10);color:var(--cyan);padding:2px 8px;border-radius:10px;font-size:10px;letter-spacing:1px">▣ LOCAL OLLAMA</span>`;
@@ -412,10 +411,8 @@ async function refresh() {
     const localOk = data.ollama && data.ollama.running;
     const apis = data.apis || {};
     const anthOk = apis.anthropic && apis.anthropic.enabled;
-    const deepOk = apis.deepseek && apis.deepseek.enabled;
     const cloudOpts = [
       anthOk && '<span style="color:var(--green)">●</span> Claude',
-      deepOk && '<span style="color:var(--green)">●</span> DeepSeek',
     ].filter(Boolean);
     const provTile = tile({
       icon: 'mcp', title: 'LLM PROVIDERS',
@@ -509,7 +506,7 @@ async function refresh() {
     h.onclick = () => showView('options');
     h.innerHTML = `<div class="tile-head"><div class="tile-title-row"><span class="tile-title" style="color:var(--magenta)">CLOUD APIs</span></div></div>
       <div class="tile-main" style="font-size:16px">none enabled</div>
-      <div class="tile-sub">Open <strong style="color:var(--cyan)">OPTIONS</strong> → enable Claude / OpenAI / Gemini / Grok / DeepSeek / OpenRouter</div>
+      <div class="tile-sub">Open <strong style="color:var(--cyan)">OPTIONS</strong> → enable Claude (optional — for Haiku distillation)</div>
       <div class="tile-foot"><span>click to configure</span><span>→</span></div>`;
     grid.appendChild(h);
   }
@@ -2081,7 +2078,6 @@ function drawForceGraphMycelium(container, data) {
   const MYCEL_PAL = {
     'claude-ai':   '#00ff88',
     'claude-code': '#00e5cc',
-    'claude-free': '#33ff66',
     'chatgpt':     '#44ddff',
     'grok':        '#aaff33',
     'antigravity': '#ffcc00',
@@ -3523,39 +3519,67 @@ function _updateProfileBar(chars) {
   bar.style.background = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--magenta)' : 'var(--accent)';
 }
 
+let _cliSkills = [];
+
+function _skillCat(id, name) {
+  const s = (id + ' ' + name).toLowerCase();
+  if (/^\d\d-|recon|osint|exploit|malware|threat|incident|forensic|vulnerab|web.?sec|cloud.?sec|red.?team|blue.?team|csoc|siem|log.?analysis|crypto.?analysis|yara|bug.?bounty|owasp|pentest|reverse.?eng|\bbinary\b/.test(s)) return 'Security';
+  if (/cisco|mikrotik|netmiko|\bbgp\b|\bvlan\b|wireguard|pihole|unifi|homelab|network|interface|routing|\bdns\b/.test(s)) return 'Network';
+  if (/trade|trading|backtest|screener|canslim|finviz|dividend|earnings|market|sector|technical.?anal|breadth|forex|pinescript|algorithmic|druckenmiller|bubble|exposure|edge-|breakout|\bstock|invest|portfolio/.test(s)) return 'Trading';
+  return 'Dev / inne';
+}
+
+const _SKILL_CAT_ORDER = ['Security', 'Network', 'Trading', 'Dev / inne'];
+
 async function renderCliSkills() {
   const list = $('#cli-skills-list');
   const meta = $('#cli-skills-meta');
   if (!list) return;
   try {
-    const r = await fetch('/api/cli-skills/list');
-    const d = await r.json();
-    const skills = d.skills || [];
-    if (meta) meta.textContent = `${skills.length} CLI skill${skills.length === 1 ? '' : 's'}`;
-    if (!skills.length) {
-      list.innerHTML = `<div class="dedup-empty">Brak skilli. Wrzuć foldery ze SKILL.md do ~/.claude/skills/</div>`;
-      return;
-    }
-    list.innerHTML = skills.map(s => {
-      return `
-        <div class="skill-card" data-name="${escapeHtml(s.id)}">
-          <div class="skill-name" style="color: var(--accent-color);">${escapeHtml(s.name)}</div>
-          <div class="skill-desc">${escapeHtml(s.description || '')}</div>
-          <div class="skill-actions" style="margin-top: 8px;">
-            <span style="font-size:10px; color:var(--text-dim); margin-right:auto; padding-left:10px;">Loaded automatically by CLI</span>
-          </div>
-        </div>`;
-    }).join('');
+    const d = await (await fetch('/api/cli-skills/list')).json();
+    _cliSkills = d.skills || [];
+    if (meta) meta.textContent = `${_cliSkills.length} skilli`;
+    _renderCliSkillsFiltered();
   } catch (e) {
     list.innerHTML = `<div class="dedup-empty">błąd: ${escapeHtml(e.message)}</div>`;
   }
 }
 
+function _renderCliSkillsFiltered() {
+  const list = $('#cli-skills-list');
+  if (!list) return;
+  list.className = 'cli-skills-compact';
+  if (!_cliSkills.length) {
+    list.innerHTML = `<div class="dedup-empty">Brak skilli. Wrzuć foldery ze SKILL.md do ~/.claude/skills/</div>`;
+    return;
+  }
+  const q = ($('#cli-skills-search')?.value || '').trim().toLowerCase();
+  const filtered = q
+    ? _cliSkills.filter(s => (s.id + ' ' + s.name + ' ' + (s.description || '')).toLowerCase().includes(q))
+    : _cliSkills;
+  if (!filtered.length) {
+    list.innerHTML = `<div class="dedup-empty">nic nie pasuje do „${escapeHtml(q)}"</div>`;
+    return;
+  }
+  const groups = {};
+  for (const s of filtered) (groups[_skillCat(s.id, s.name)] ||= []).push(s);
+  list.innerHTML = _SKILL_CAT_ORDER.filter(c => groups[c]).map(cat => {
+    const rows = groups[cat].sort((a, b) => a.name.localeCompare(b.name)).map(s => `
+      <div class="skill-row" title="${escapeHtml(s.description || '')}">
+        <span class="skill-row-name">${escapeHtml(s.name)}</span>
+        <span class="skill-row-desc">${escapeHtml(s.description || '')}</span>
+      </div>`).join('');
+    return `<div class="skill-group"><div class="skill-group-head">${cat} <span>${groups[cat].length}</span></div>${rows}</div>`;
+  }).join('');
+}
+
 function initCliSkills() {
   const refresh = $('#cli-skills-refresh');
   const open = $('#cli-skills-open');
+  const search = $('#cli-skills-search');
   if (refresh) refresh.onclick = () => renderCliSkills();
   if (open) open.onclick = () => fetch('/api/cli-skills/open', {method: 'POST'});
+  if (search) search.oninput = () => _renderCliSkillsFiltered();
 }
 
 // ============================================================================
@@ -3578,7 +3602,7 @@ async function renderCodeIndex() {
 
     const watches = d.watches || [];
     if (!watches.length) {
-      list.innerHTML = `<div class="dedup-empty">Brak watched paths. Wklej ścieżkę do swojego projektu (np. C:\\Users\\helluk\\projects\\my-repo) i kliknij ADD PATH.</div>`;
+      list.innerHTML = `<div class="dedup-empty">Brak watched paths. Wklej ścieżkę do swojego projektu (np. C:\\Users\\you\\projects\\my-repo) i kliknij ADD PATH.</div>`;
       return;
     }
     list.innerHTML = watches.map(p => `
@@ -3715,55 +3739,12 @@ async function renderAgents() {
       }).join('  ·  ') || '(brak)';
       const recent = _recentlyDeployed.has(a.id) ? ' recent-deploy' : '';
       // Agents that support system-prompt injection
-      const SUPPORTS_PROMPT = new Set(['claude-code', 'cursor', 'antigravity-cli', 'claude-free', 'vscode', 'antigravity', 'windsurf']);
+      const SUPPORTS_PROMPT = new Set(['claude-code', 'cursor', 'antigravity-cli', 'vscode', 'antigravity', 'windsurf']);
       const promptBtn = SUPPORTS_PROMPT.has(a.id)
         ? `<button class="opt-btn" data-action="inject-prompt" data-id="${escapeHtml(a.id)}"
                    title="wstrzyknij stałe instrukcje brain MCP do system-prompt agenta (CLAUDE.md / .cursorrules)">🧠 AUTO-PROMPT</button>`
         : '';
 
-      // ── Special card: FREE CLAUDE CODE proxy ──────────────────────────────
-      if (a.id === 'claude-free') {
-        const fccInstalled = a.fcc_binary_found === true;
-        const mcpWired = a.mcp_wired === true || a.brain_status === 'wired';
-        const fccBadge = !fccInstalled ? 'NOT INSTALLED'
-                       : mcpWired ? '✓ WIRED' : '○ NOT WIRED';
-        const fccKlass = !fccInstalled ? 'not_installed'
-                       : mcpWired ? 'wired' : 'not_wired';
-        return `
-          <div class="agent-card ${fccKlass}${recent} fcc-card" data-id="claude-free">
-            <div class="agent-head">
-              <span class="agent-icon">🦝</span>
-              <span class="agent-label">${escapeHtml(a.label)}</span>
-              <span class="agent-badge ${fccKlass}">${fccBadge}</span>
-              <span class="fcc-proxy-status" id="fcc-proxy-badge" style="margin-left:8px;font-size:10px;padding:2px 7px;border-radius:10px;background:#1a1a2e;color:#888">● PROXY ?</span>
-            </div>
-            <div style="font-size:11px;color:var(--text-dim);margin:4px 0 2px">
-              Lokalny proxy: Claude Code CLI → OpenRouter / Gemini / DeepSeek
-              &nbsp;·&nbsp;<a href="https://github.com/Alishahryar1/free-claude-code" target="_blank" style="color:#7b6fce;text-decoration:none">GitHub ↗</a>
-              &nbsp;·&nbsp;<a href="http://127.0.0.1:8082/admin" target="_blank" id="fcc-admin-link" style="color:#34a853;text-decoration:none;opacity:0.4">Admin UI ↗</a>
-            </div>
-            <div class="agent-config" title="${escapeHtml(a.config_path)}">${escapeHtml(a.config_path)}&nbsp;<span style="font-size:10px;color:#888">(shared with Claude Code)</span></div>
-            <div class="agent-servers">${(a.all_servers||[]).map(s=>['brain-vault','brain-library','brain-rag'].includes(s)?`<span class="brain">${escapeHtml(s)}</span>`:`<span class="other">${escapeHtml(s)}</span>`).join('  ·  ')||'(brak)'}</div>
-            <div class="agent-actions" id="fcc-actions">
-              ${!fccInstalled ? `
-                <button class="opt-btn" id="fcc-install-btn" onclick="fccInstall(this)" style="background:linear-gradient(135deg,#7b6fce,#5b4fb3)">⬇ INSTALL fcc-server</button>
-                <span style="font-size:10px;color:var(--text-dim)">PowerShell installer — poczekaj ~90s</span>
-              ` : `
-                ${mcpWired
-                  ? `<button class="opt-btn test" data-action="undeploy" data-id="claude-free">⏏ UNDEPLOY</button>
-                     <button class="opt-btn"      data-action="redeploy" data-id="claude-free">↻ RE-DEPLOY</button>`
-                  : `<button class="opt-btn" data-action="deploy" data-id="claude-free">▶ DEPLOY MCP</button>`
-                }
-                ${promptBtn}
-                <button class="opt-btn" onclick="fccStart(this)" title="Uruchom fcc-server na :8082 jako daemon (przezywa restart dashboardu)" style="background:linear-gradient(135deg,#2b8a3e,#1f6928)">▶ START PROXY</button>
-                <button class="opt-btn test" onclick="fccStop(this)" title="Zatrzymaj fcc-server i jego sieroty">⏹ STOP PROXY</button>
-                <button class="opt-btn" onclick="fccConfigure(this)" title="Wgraj klucze API (OpenRouter/Gemini/DeepSeek) do fcc-server" style="background:linear-gradient(135deg,#1a6b3a,#0d4a2a)">⚙ CONFIGURE</button>
-              `}
-            </div>
-            <div id="fcc-status-msg" style="font-size:11px;color:#7b6fce;margin-top:4px;min-height:14px"></div>
-          </div>`;
-      }
-      // ── End special claude-free card ──────────────────────────────────────
 
 
       const actions = !a.installed
@@ -3789,8 +3770,6 @@ async function renderAgents() {
         </div>`;
     }).join('');
 
-    // Poll fcc-server proxy status after rendering
-    _fccPollProxyStatus();
 
     list.querySelectorAll('button[data-action]').forEach(btn => {
       btn.onclick = async () => {
@@ -3837,117 +3816,6 @@ function initAgents() {
     renderAgents();
   };
 }
-
-// ============================================================================
-// Free Claude Code (fcc) helpers
-// ============================================================================
-
-async function fccInstall(btn) {
-  btn.disabled = true;
-  const orig = btn.textContent;
-  btn.textContent = '… INSTALLING …';
-  const msg = document.getElementById('fcc-status-msg');
-  if (msg) msg.textContent = 'Uruchamiam instalator PowerShell…';
-  try {
-    const r = await fetch('/api/agents/claude-free/install', {method: 'POST'});
-    const d = await r.json();
-    if (d.already_installed) {
-      if (msg) msg.textContent = '✓ fcc-server już zainstalowany! Uruchom: fcc-server';
-      btn.textContent = '✓ INSTALLED';
-      setTimeout(() => renderAgents(), 2000);
-    } else if (d.ok) {
-      if (msg) msg.textContent = `✓ ${d.message}`;
-      btn.textContent = '⏳ INSTALLING…';
-      // After ~75s re-check if fcc-server is now in PATH
-      setTimeout(() => renderAgents(), 75000);
-    } else {
-      if (msg) msg.innerHTML = `✗ Błąd: ${escapeHtml(d.error || 'nieznany')}<br><code style="font-size:10px">${escapeHtml(d.manual_cmd||'')}</code>`;
-      btn.textContent = orig; btn.disabled = false;
-    }
-  } catch (e) {
-    if (msg) msg.textContent = `✗ ${e.message}`;
-    btn.textContent = orig; btn.disabled = false;
-  }
-}
-
-async function fccStart(btn) {
-  btn.disabled = true; const orig = btn.textContent; btn.textContent = '… starting …';
-  const msg = document.getElementById('fcc-status-msg');
-  if (msg) msg.textContent = 'Uruchamiam fcc-server na :8082…';
-  try {
-    const r = await fetch('/api/agents/claude-free/start', {method: 'POST'});
-    const d = await r.json();
-    if (d.ok) {
-      if (msg) msg.innerHTML = d.already_running
-        ? `✓ fcc-server już działa (PID ${d.pid || '?'})`
-        : `✓ fcc-server uruchomiony (PID ${d.pid}) · log: <code>${escapeHtml(d.log||'')}</code>`;
-      _fccSetProxyBadge(true);
-    } else {
-      if (msg) msg.innerHTML = `✗ ${escapeHtml(d.error||'?')}`;
-    }
-  } catch (e) { if (msg) msg.textContent = `✗ ${e.message}`; }
-  btn.textContent = orig; btn.disabled = false;
-}
-
-async function fccStop(btn) {
-  btn.disabled = true; const orig = btn.textContent; btn.textContent = '… stopping …';
-  const msg = document.getElementById('fcc-status-msg');
-  try {
-    const r = await fetch('/api/agents/claude-free/stop', {method: 'POST'});
-    const d = await r.json();
-    if (msg) msg.textContent = d.ok
-      ? `✓ Zatrzymano fcc-server (${d.killed_count} procesów)${d.extra_killed ? ' + sieroty' : ''}`
-      : `✗ ${d.error||'?'}`;
-    _fccSetProxyBadge(false);
-  } catch (e) { if (msg) msg.textContent = `✗ ${e.message}`; }
-  btn.textContent = orig; btn.disabled = false;
-}
-
-async function fccConfigure(btn) {
-  btn.disabled = true;
-  const orig = btn.textContent;
-  btn.textContent = '… CONFIGURING …';
-  const msg = document.getElementById('fcc-status-msg');
-  if (msg) msg.textContent = 'Wgrywam klucze API do fcc-server…';
-  try {
-    const r = await fetch('/api/agents/claude-free/configure', {method: 'POST'});
-    const d = await r.json();
-    const providers = (d.configured_providers || []).join(', ') || '—';
-    const model = d.chosen_model || '—';
-    if (d.pushed_to_proxy) {
-      if (msg) msg.innerHTML = `✓ Skonfigurowano: <b>${providers}</b><br>Model domyślny: <code>${escapeHtml(model)}</code><br>Admin UI: <a href="http://127.0.0.1:8082/admin" target="_blank" style="color:#34a853">http://127.0.0.1:8082/admin ↗</a>`;
-      _fccSetProxyBadge(true);
-    } else {
-      const hint = d.push_error ? ` (${d.push_error})` : '';
-      if (msg) msg.innerHTML = `⚠ Klucze gotowe: <b>${providers}</b><br>${escapeHtml(d.note || '')}${hint}<br>Uruchom: <code>fcc-server</code> potem kliknij CONFIGURE ponownie.`;
-    }
-  } catch (e) {
-    if (msg) msg.textContent = `✗ ${e.message}`;
-  }
-  btn.textContent = orig; btn.disabled = false;
-}
-
-function _fccSetProxyBadge(alive) {
-  const badge = document.getElementById('fcc-proxy-badge');
-  const adminLink = document.getElementById('fcc-admin-link');
-  if (badge) {
-    badge.textContent = alive ? '● PROXY LIVE' : '● PROXY DOWN';
-    badge.style.background = alive ? '#0d4a2a' : '#4a0d0d';
-    badge.style.color = alive ? '#34a853' : '#e05a5a';
-  }
-  if (adminLink) adminLink.style.opacity = alive ? '1' : '0.3';
-}
-
-async function _fccPollProxyStatus() {
-  try {
-    const r = await fetch('/api/agents/claude-free/proxy-status');
-    const d = await r.json();
-    _fccSetProxyBadge(d.alive === true);
-  } catch (e) {
-    _fccSetProxyBadge(false);
-  }
-}
-
 // ============================================================================
 // ============================================================================
 // TOOLS: AUTO SCHEDULE (background tasks)
@@ -4285,7 +4153,7 @@ const CHEAT_PROMPTS = [
   { cat: 'SEARCH', title: 'Wymień co jest w library', code:
     `brain-library: wymień wszystkie pliki, ich rozmiary i daty.\nGrupuj po typach: PDF / EPUB / DOCX.` },
   { cat: 'SAVE',   title: 'Zapisz tę rozmowę do brain', code:
-    `Zapisz tę rozmowę używając brain-rag.save_conversation:\n- source: "<antigravity / claude-desktop / claude-code / claude-free / cursor / vscode / windsurf / antigravity-cli>"\n- topic: krótki tytuł\n- summary: 2-3 zdania\n- decisions: lista decyzji\n- solutions: kod / komendy\n- facts: rzeczy nauczone\n- open_questions: pytania do follow-up\n- msg_count: liczba wymian\nPodaj ścieżkę pliku.` },
+    `Zapisz tę rozmowę używając brain-rag.save_conversation:\n- source: "<antigravity / claude-desktop / claude-code / cursor / vscode / windsurf / antigravity-cli>"\n- topic: krótki tytuł\n- summary: 2-3 zdania\n- decisions: lista decyzji\n- solutions: kod / komendy\n- facts: rzeczy nauczone\n- open_questions: pytania do follow-up\n- msg_count: liczba wymian\nPodaj ścieżkę pliku.` },
   { cat: 'SAVE',   title: 'Luźna notatka do vault', code:
     `Stwórz markdown notatkę o <TEMAT> i zapisz przez brain-vault.write_file w\n"notes/<data>_<temat-slug>.md" z YAML frontmatter (source: manual, date: ...).` },
   { cat: 'CASES',  title: 'Co jest w sprawach (lista)', code:
@@ -4379,7 +4247,7 @@ function initWorkflowRibbon() {
   // PANIC button — STOP ALL + GPU UNLOAD
   const panic = $('#panic-btn');
   if (panic) panic.onclick = async () => {
-    if (!confirm('🚨 PANIC MODE\n\nStop wszystkich zadań (distill, redistill, RAG, code index, fcc) + unload modeli z VRAM + pauza schedulera 1h.\n\nKontynuować?')) return;
+    if (!confirm('🚨 PANIC MODE\n\nStop wszystkich zadań (distill, redistill, RAG, code index) + unload modeli z VRAM + pauza schedulera 1h.\n\nKontynuować?')) return;
     panic.disabled = true;
     const orig = panic.textContent;
     panic.textContent = '🚨 STOPPING…';
