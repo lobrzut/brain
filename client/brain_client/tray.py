@@ -7,7 +7,7 @@ import webbrowser
 from pathlib import Path
 from typing import Callable
 
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageOps
 
 from .agents import BRAIN_KEYS, list_agents
 from .config import load_config, save_config
@@ -35,18 +35,24 @@ def _resource_path(name: str) -> Path:
 
 
 def _icon(color: str) -> Image.Image:
-    """Brain emblem with a status-colored dot in the corner.
+    """Brain emblem tinted by status color (green / amber / red).
 
-    Falls back to a plain status circle if the icon asset is missing."""
+    The whole brain is recolored so status stays legible even at 16 px tray
+    size. Falls back to a plain status circle if the icon asset is missing."""
     size = 64
     try:
+        rgb = tuple(int(color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
         base = Image.open(_resource_path("brain.ico")).convert("RGBA").resize((size, size), Image.LANCZOS)
-        draw = ImageDraw.Draw(base)
-        r = 20
-        x0, y0 = size - r - 1, size - r - 1
-        draw.ellipse((x0 - 2, y0 - 2, x0 + r + 2, y0 + r + 2), fill=(10, 14, 20, 230))
-        draw.ellipse((x0 + 2, y0 + 2, x0 + r - 2, y0 + r - 2), fill=color)
-        return base
+        alpha = base.split()[3]
+        gray = base.convert("L")
+        tinted = ImageOps.colorize(
+            gray,
+            black=(8, 12, 16),
+            mid=tuple(int(c * 0.55) for c in rgb),
+            white=rgb,
+        ).convert("RGBA")
+        tinted.putalpha(alpha)
+        return tinted
     except Exception:
         img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
