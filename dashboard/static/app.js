@@ -415,7 +415,7 @@ async function refresh() {
       status: localOk ? 'ok' : 'warn',
       body: `<div class="tile-main">
               <span style="color:${localOk?'var(--cyan)':'var(--text-dim)'}">${localOk?'▣':'○'} Local</span>
-              ${cloudOpts.length ? '<span style="font-size:14px;color:var(--text-dim);margin-left:8px">+ ${cloudOpts.length} cloud</span>' : ''}
+              ${cloudOpts.length ? '<span style="font-size:14px;color:var(--text-dim);margin-left:8px">+ ' + cloudOpts.length + ' cloud</span>' : ''}
             </div>
             <div class="tile-sub">
               ${localOk ? 'Ollama ' + (data.ollama.count || 0) + ' models' : 'Ollama OFF'}
@@ -475,7 +475,7 @@ async function refresh() {
     apiCluster.innerHTML = `
       <div class="tile-head">
         <div class="tile-title-row">
-          <span class="tile-icon">${ICONS.openai}</span>
+          <span class="tile-icon">${ICONS.claude}</span>
           <span class="tile-title">API PROVIDERS (${enabledApis.length})</span>
         </div>
         <div class="status-dot ok"></div>

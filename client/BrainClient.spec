@@ -9,7 +9,7 @@ a = Analysis(
     ['run_brain_client.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('brain.ico', '.')],
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -39,4 +39,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='brain.ico',
 )

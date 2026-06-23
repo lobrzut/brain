@@ -4,6 +4,7 @@ import subprocess
 import sys
 import threading
 import webbrowser
+from pathlib import Path
 from typing import Callable
 
 from PIL import Image, ImageDraw
@@ -21,12 +22,37 @@ from .system_integration import (
 )
 
 
+def _resource_path(name: str) -> Path:
+    """Locate a bundled asset both under PyInstaller (_MEIPASS) and in dev."""
+    base = getattr(sys, "_MEIPASS", None)
+    if base:
+        return Path(base) / name
+    here = Path(__file__).resolve().parent
+    for cand in (here / name, here.parent / name, here.parent.parent / name):
+        if cand.exists():
+            return cand
+    return Path(name)
+
+
 def _icon(color: str) -> Image.Image:
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.ellipse((8, 8, 56, 56), fill=color)
-    draw.ellipse((22, 22, 42, 42), fill=(255, 255, 255, 220))
-    return img
+    """Brain emblem with a status-colored dot in the corner.
+
+    Falls back to a plain status circle if the icon asset is missing."""
+    size = 64
+    try:
+        base = Image.open(_resource_path("brain.ico")).convert("RGBA").resize((size, size), Image.LANCZOS)
+        draw = ImageDraw.Draw(base)
+        r = 20
+        x0, y0 = size - r - 1, size - r - 1
+        draw.ellipse((x0 - 2, y0 - 2, x0 + r + 2, y0 + r + 2), fill=(10, 14, 20, 230))
+        draw.ellipse((x0 + 2, y0 + 2, x0 + r - 2, y0 + r - 2), fill=color)
+        return base
+    except Exception:
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.ellipse((8, 8, 56, 56), fill=color)
+        draw.ellipse((22, 22, 42, 42), fill=(255, 255, 255, 220))
+        return img
 
 
 class BrainTray:
