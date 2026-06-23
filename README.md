@@ -1,5 +1,8 @@
 ﻿# Brain AI Hub
 
+[![Latest release](https://img.shields.io/github/v/release/lobrzut/brain)](https://github.com/lobrzut/brain/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 [![Dashboard demo](docs/screenshots/dashboard-demo.gif)](https://github.com/lobrzut/brain)
 
 Portable **personal AI platform** — local LLM, knowledge vault, RAG, transcript distillation, and MCP integration for Claude Code, Cursor, and other agents.
@@ -19,7 +22,7 @@ Install scripts support **Polish** and **English** (`locale.env`: `LANG=pl` or `
 
 1. **Local LLM** — Ollama (qwen2.5, nomic-embed). OpenAI-compatible API at `:11434/v1`.
 2. **Knowledge store** — vault (Markdown/Obsidian), library (PDF/EPUB/DOCX), semantic RAG (sqlite-vec), knowledge graph.
-3. **Agent bridge** — MCP servers (`brain-vault`, `brain-library`, `brain-rag`) + one-click deploy to Claude Desktop, Claude Code, Cursor, VS Code, Antigravity.
+3. **Agent bridge** — MCP servers (`brain-vault`, `brain-library`, `brain-rag`) + **BRAIN Client**, a tray app that auto-detects installed agents (Claude Desktop, Claude Code, Cursor, VS Code, Antigravity) and wires all three servers in one double-click.
 
 **Pipeline:** transcript distillation from Claude/Cursor/Antigravity → vault notes, redistill, dedupe, code index, scheduled background jobs.
 
@@ -90,6 +93,7 @@ brain/
 ├── windows/          # install.ps1, start.ps1, stop.ps1, Locale.ps1 (PL/EN)
 ├── linux/            # bootstrap.sh, install.sh, systemd, MCP gateway
 ├── dashboard/        # FastAPI backend + static UI
+├── client/           # BRAIN Client — tray app that deploys MCP to agents
 ├── pipeline/         # distill, RAG, agents, scheduler, skills runner
 ├── skills/           # Brain agentic workflows (SKILL.md)
 ├── data/             # templates only in git — your vault/library stay local
@@ -111,14 +115,33 @@ brain/
 
 ## MCP — connect your IDE
 
-**Windows (stdio, local):** Dashboard → TOOLS → deploy MCP to Cursor / Claude Code.
-
-**Linux (SSE, LAN):** Point `~/.cursor/mcp.json` at your server — see `linux/docs/cursor-mcp-remote.json`.
-
-Three servers:
+Three servers get wired into your agent:
 - `brain-vault` — read/write vault markdown
 - `brain-library` — PDF/EPUB library files
 - `brain-rag` — semantic search, skills, code index, user profile
+
+### BRAIN Client (recommended)
+
+A small tray app that auto-detects installed agents and deploys all three MCP
+servers in one double-click — no PowerShell, no Python. Existing MCP entries
+are left untouched.
+
+- **🪟 Windows** — [download `BrainClient.exe`](https://github.com/lobrzut/brain/releases/latest/download/BrainClient.exe)
+- **🐧 Linux / 🍎 macOS** — build from source:
+  ```bash
+  git clone https://github.com/lobrzut/brain && cd brain/client
+  pip install -r requirements.txt
+  python -m brain_client tray
+  ```
+
+By default it connects to `http://127.0.0.1:7862`. For a remote brain server set
+`BRAIN_MCP_URL=http://<host>:7862` (or edit `~/.brain/client.json`). It also
+supports an SSH transport (stdio over SSH) — see [`client/README.md`](client/README.md).
+
+### Manual
+
+- **Windows (stdio, local):** Dashboard → TOOLS → AGENTS panel.
+- **Linux (SSE, LAN):** point `~/.cursor/mcp.json` at your server — see [`linux/docs/cursor-mcp-remote.json`](linux/docs/cursor-mcp-remote.json).
 
 ---
 
