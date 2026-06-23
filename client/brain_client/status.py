@@ -59,9 +59,9 @@ def snapshot(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
 
 def tooltip_text(snap: dict[str, Any]) -> str:
     if not snap["online"]:
-        return "BRAIN: offline"
+        return "BRAIN Client — serwer offline"
     model = snap.get("model") or "?"
     wired = snap.get("agents_wired", 0)
     installed = snap.get("agents_installed", 0)
-    mcp = "MCP OK" if snap.get("mcp_online") else "MCP down"
-    return f"BRAIN {model} | {wired}/{installed} wired | {mcp}"
+    mcp = "MCP OK" if snap.get("mcp_online") else "MCP brak"
+    return f"BRAIN · {model} · {wired}/{installed} agentów · {mcp}"

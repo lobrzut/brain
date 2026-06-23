@@ -148,58 +148,68 @@ class BrainTray:
                 checked=lambda _item: self._cfg.get("autostart_enabled", True),
             ),
             self._pystray.MenuItem(
-                "Deploy MCP przy starcie",
+                "Wdrażaj MCP przy starcie",
                 self._toggle_auto_deploy,
                 checked=lambda _item: self._cfg.get("auto_deploy_on_start", True),
             ),
             self._pystray.MenuItem(
-                "Otwórz dashboard przy starcie",
+                "Otwieraj dashboard przy starcie",
                 self._toggle_open_browser,
                 checked=lambda _item: self._cfg.get("open_browser_on_start", False),
             ),
             self._pystray.Menu.SEPARATOR,
             self._pystray.MenuItem(
-                shortcut_label,
+                f"🔗  {shortcut_label}",
                 self._on_create_shortcut,
                 enabled=not has_desktop_shortcut(),
             ),
             self._pystray.MenuItem(
-                "Zainstaluj do folderu użytkownika",
+                "📦  Zainstaluj do folderu użytkownika",
                 self._on_install_to_folder,
                 enabled=not self._is_installed_location(),
             ),
         ]
 
+    @staticmethod
+    def _agent_glyph(status: str) -> str:
+        return {"wired": "✅", "partial": "🟡"}.get(status, "⚪")
+
     def _menu(self) -> list:
         snap = self._snap
+        online = snap.get("online")
+        mcp = snap.get("mcp_online")
+        wired = snap.get("agents_wired", 0)
+        installed = snap.get("agents_installed", 0)
+        agents_dot = "🟢" if (installed and wired == installed) else ("🟡" if wired else "🔴")
+
         lines = [
+            self._pystray.MenuItem("🧠  BRAIN Client", None, enabled=False),
+            self._pystray.Menu.SEPARATOR,
             self._pystray.MenuItem(
-                f"Status: {'ONLINE' if snap.get('online') else 'OFFLINE'}",
-                None,
-                enabled=False,
+                f"{'🟢' if online else '🔴'}  Serwer: {'online' if online else 'offline'}",
+                None, enabled=False,
             ),
             self._pystray.MenuItem(
-                f"MCP: {'OK' if snap.get('mcp_online') else 'DOWN'}",
-                None,
-                enabled=False,
+                f"{'🟢' if mcp else '🔴'}  MCP: {'OK' if mcp else 'brak'}",
+                None, enabled=False,
             ),
             self._pystray.MenuItem(
-                f"Agents: {snap.get('agents_wired', 0)}/{snap.get('agents_installed', 0)} wired",
-                None,
-                enabled=False,
+                f"{agents_dot}  Agenci: {wired}/{installed} wpięci",
+                None, enabled=False,
             ),
             self._pystray.Menu.SEPARATOR,
-            self._pystray.MenuItem("Open BRAIN dashboard", self._open_brain),
-            self._pystray.MenuItem("Deploy MCP to all installed", self._deploy_all),
-            self._pystray.MenuItem("Ustawienia", self._pystray.Menu(lambda: self._settings_menu())),
+            self._pystray.MenuItem("📊  Otwórz dashboard", self._open_brain),
+            self._pystray.MenuItem("🚀  Wdróż MCP wszędzie", self._deploy_all),
+            self._pystray.MenuItem("⚙️  Ustawienia", self._pystray.Menu(lambda: self._settings_menu())),
             self._pystray.Menu.SEPARATOR,
+            self._pystray.MenuItem("Agenci  ·  klik = wpnij", None, enabled=False),
         ]
 
         for agent in list_agents(BRAIN_KEYS):
             if not agent["installed"]:
                 continue
             status = agent["brain_status"]
-            label = f"{agent['label']} [{status}]"
+            label = f"{self._agent_glyph(status)}  {agent['label']}"
             lines.append(
                 self._pystray.MenuItem(
                     label,
@@ -211,8 +221,8 @@ class BrainTray:
         lines.extend(
             [
                 self._pystray.Menu.SEPARATOR,
-                self._pystray.MenuItem("Refresh", self._on_refresh),
-                self._pystray.MenuItem("Quit", self._on_quit),
+                self._pystray.MenuItem("🔄  Odśwież", self._on_refresh),
+                self._pystray.MenuItem("✖  Zamknij", self._on_quit),
             ]
         )
         return lines
