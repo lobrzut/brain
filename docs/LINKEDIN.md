@@ -15,13 +15,13 @@ Full table: `brain/docs/HOMELAB-PROJECTS.md`
 ## Headline
 
 ```
-IT & cybersec admin | Self-hosted AI (Brain, AI Studio, NetDash) | Homelab · MCP · FastAPI
+IT administration | Self-hosted AI (Brain, AI Studio, NetDash) | Homelab · MCP · FastAPI
 ```
 
 ## About
 
 ```
-IT and cybersecurity administration — infrastructure, automation, and day-to-day security operations.
+IT administration — infrastructure, automation, and day-to-day security operations.
 
 On the side I build three separate self-hosted projects in my homelab (different repos, different dashboards):
 

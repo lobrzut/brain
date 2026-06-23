@@ -4556,11 +4556,18 @@ async function initConnectivity() {
     const r = await fetch('/api/options');
     const o = await r.json();
     url.value = o.ollama_url || '';
+    const cb = $('#opt-stats-api');
+    if (cb) {
+      cb.classList.toggle('on', o.stats_api_enabled !== false);
+      if (!cb._wired) { cb._wired = true; cb.onclick = () => cb.classList.toggle('on'); }
+    }
   } catch (e) { /* ignore */ }
 
   $('#opt-conn-save').onclick = async () => {
+    const cb = $('#opt-stats-api');
     const body = {
-      ollama_url: url.value
+      ollama_url: url.value,
+      stats_api_enabled: cb ? cb.classList.contains('on') : true
     };
     const r = await fetch('/api/options', {method:'POST', headers:{'content-type':'application/json'},
                                            body: JSON.stringify(body)});

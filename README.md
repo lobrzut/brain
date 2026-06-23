@@ -23,7 +23,7 @@ Install scripts support **Polish** and **English** (`locale.env`: `LANG=pl` or `
 
 **Pipeline:** transcript distillation from Claude/Cursor/Antigravity → vault notes, redistill, dedupe, code index, scheduled background jobs.
 
-**Dashboard** (`:7860`): service control, chat widget, agent workflow prompts, API key vault, GPU/VRAM monitor.
+**Dashboard** (`:7860`): service control, chat widget, agent workflow prompts, Claude API key (optional — for Haiku distillation), GPU/VRAM monitor.
 
 ---
 
@@ -119,6 +119,30 @@ Three servers:
 - `brain-vault` — read/write vault markdown
 - `brain-library` — PDF/EPUB library files
 - `brain-rag` — semantic search, skills, code index, user profile
+
+---
+
+## Public `/stats` endpoint (for external dashboards)
+
+Brain exposes a compact JSON summary at `http://<host>:7860/stats` — designed
+for homelab status tiles (e.g. [netdash](https://github.com/lobrzut/netdash)
+has a built-in Brain widget that consumes it).
+
+```json
+{
+  "ok": true,
+  "notes": 1693,           // vault .md count
+  "sessions": 39,          // vault/sessions count
+  "library_docs": 42,      // PDF/EPUB count
+  "code_files": 0,         // code index size
+  "graph_nodes": 1693,
+  "last_session_at": "2026-06-20T13:14:31",
+  "activity_7d": [2,1,0,1,0,1,0]   // sessions per day, oldest → newest
+}
+```
+
+Cached 60 s, no auth. Toggle in **Dashboard → OPTIONS → CONNECTIVITY**
+(`/stats` checkbox) — when disabled, the endpoint returns **HTTP 403**.
 
 ---
 

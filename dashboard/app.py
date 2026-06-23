@@ -516,6 +516,72 @@ def api_status() -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Public /stats — compact summary for external dashboards (e.g. netdash tile)
+# Contract documented in netdash app.js renderBrainStats().
+# ---------------------------------------------------------------------------
+_stats_cache: dict[str, Any] = {"ts": 0.0, "data": None}
+
+@app.get("/stats")
+def public_stats() -> dict[str, Any]:
+    """Compact JSON summary consumed by external monitoring tiles. Cached 60s.
+    Can be disabled in OPTIONS (stats_api_enabled=false → 403)."""
+    if not bool(_load_options().get("stats_api_enabled", True)):
+        raise HTTPException(status_code=403, detail="/stats is disabled in OPTIONS")
+    global _stats_cache
+    now = time.time()
+    if _stats_cache["data"] is not None and (now - _stats_cache["ts"]) < 60:
+        return _stats_cache["data"]
+
+    notes = vault_status().get("notes", 0)
+    lib_doc_count = library_status().get("files_count", 0) or library_status().get("pdfs", 0)
+
+    # Sessions: vault/sessions/*.md — count + newest mtime + 7-day activity buckets
+    sessions_dir = VAULT_DIR / "sessions"
+    session_mtimes: list[float] = []
+    if sessions_dir.exists():
+        for p in sessions_dir.rglob("*.md"):
+            try:
+                session_mtimes.append(p.stat().st_mtime)
+            except OSError:
+                pass
+    sessions = len(session_mtimes)
+    last_session_at = None
+    if session_mtimes:
+        last_session_at = datetime.fromtimestamp(max(session_mtimes)).isoformat(timespec="seconds")
+
+    # activity_7d: index 0 = 6 days ago, index 6 = today (oldest -> newest)
+    from datetime import date as _date, timedelta as _td
+    today = _date.today()
+    buckets = [0] * 7
+    for m in session_mtimes:
+        d = _date.fromtimestamp(m)
+        delta = (today - d).days
+        if 0 <= delta <= 6:
+            buckets[6 - delta] += 1
+
+    # code_files: cheap if codeindex is loaded; tolerate any failure
+    code_files = 0
+    try:
+        ci = _load_codeindex()
+        code_files = int(ci.status().get("files", 0) or 0)
+    except Exception:
+        pass
+
+    data = {
+        "ok": True,
+        "notes": notes,
+        "sessions": sessions,
+        "library_docs": lib_doc_count,
+        "code_files": code_files,
+        "graph_nodes": notes,  # each vault note becomes a graph node
+        "last_session_at": last_session_at,
+        "activity_7d": buckets,
+    }
+    _stats_cache = {"ts": now, "data": data}
+    return data
+
+
+# ---------------------------------------------------------------------------
 # API keys
 # ---------------------------------------------------------------------------
 @app.get("/api/keys")
@@ -2660,6 +2726,7 @@ def api_options_get() -> dict[str, Any]:
         "smb_user":       smb.get("user", ""),
         "smb_has_pass":   bool(smb.get("pass_enc")),
         "cases_source":   o.get("cases_source", "local"),
+        "stats_api_enabled": bool(o.get("stats_api_enabled", True)),
     }
 
 
@@ -2670,6 +2737,7 @@ class OptionsBody(BaseModel):
     smb_user:     str | None = None
     smb_pass:     str | None = None  # if "" → clear; if not provided → keep existing
     cases_source: str | None = None
+    stats_api_enabled: bool | None = None
 
 
 @app.post("/api/options")
@@ -2682,6 +2750,8 @@ def api_options_save(body: OptionsBody) -> dict[str, Any]:
         o["ollama_url"] = url
     if body.cases_source is not None:
         o["cases_source"] = body.cases_source if body.cases_source in ("local","smb") else "local"
+    if body.stats_api_enabled is not None:
+        o["stats_api_enabled"] = bool(body.stats_api_enabled)
     smb = o.get("smb", {})
     if body.smb_share is not None:  smb["share"]  = body.smb_share.strip()
     if body.smb_letter is not None: smb["letter"] = body.smb_letter.strip()
