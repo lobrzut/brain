@@ -35,24 +35,24 @@ def _resource_path(name: str) -> Path:
 
 
 def _icon(color: str) -> Image.Image:
-    """Brain emblem tinted by status color (green / amber / red).
+    """Brain on a rounded chip filled with the status color.
 
-    The whole brain is recolored so status stays legible even at 16 px tray
-    size. Falls back to a plain status circle if the icon asset is missing."""
+    The chip stays visible on any taskbar (light/dark) while the brain mark
+    keeps the icon recognizable down to 16 px. Falls back to a plain status
+    circle if the icon asset is missing."""
     size = 64
+    rgb = tuple(int(color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
     try:
-        rgb = tuple(int(color.lstrip("#")[i:i + 2], 16) for i in (0, 2, 4))
+        img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        pad = max(1, size // 16)
+        radius = max(3, size // 4)
+        draw.rounded_rectangle((pad, pad, size - pad, size - pad), radius=radius, fill=rgb + (255,))
         base = Image.open(_resource_path("brain.ico")).convert("RGBA").resize((size, size), Image.LANCZOS)
-        alpha = base.split()[3]
-        gray = base.convert("L")
-        tinted = ImageOps.colorize(
-            gray,
-            black=(8, 12, 16),
-            mid=tuple(int(c * 0.55) for c in rgb),
-            white=rgb,
-        ).convert("RGBA")
-        tinted.putalpha(alpha)
-        return tinted
+        lum = base.convert("L").point(lambda v: min(255, int(v * 1.5)))
+        stamp = Image.new("RGBA", (size, size), (10, 18, 12, 255))
+        img.paste(stamp, (0, 0), lum)
+        return img
     except Exception:
         img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
         draw = ImageDraw.Draw(img)
