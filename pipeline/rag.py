@@ -41,6 +41,7 @@ try: import mobi as mobi_lib  # type: ignore
 except ImportError: mobi_lib = None
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # portable-python: ensure pipeline/ on path
 from paths import data_root  # noqa: E402
 _DATA = data_root()
 LIBRARY = _DATA / "library"

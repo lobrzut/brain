@@ -1,0 +1,21 @@
+[project]
+name = "brain-client"
+version = "0.1.0"
+description = "BRAIN tray agent — status, open dashboard, auto MCP deploy"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "pystray>=0.19.5",
+  "Pillow>=10.0.0",
+]
+
+[project.scripts]
+brain-client = "brain_client.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["brain_client*"]

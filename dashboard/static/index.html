@@ -6,7 +6,7 @@
   <title>BRAIN</title>
   <link rel="icon" type="image/png" sizes="512x512" href="brain-emblem.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20260623b">
+  <link rel="stylesheet" href="style.css?v=20260623v">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <!-- Pin to UMD build that exposes window.THREE (Cosmos theme needs it).
        Newer 3d-force-graph (1.7+) bundles its own ES-modular three internally,
@@ -309,19 +309,39 @@ Podaj ścieżkę pliku.</pre>
       <!-- AGENTS / MCP DEPLOY — top of TOOLS -->
       <section class="brain-section" id="agents-panel">
         <div class="bsec-head">
-          <h2>AGENTS · MCP DEPLOY</h2>
+          <h2>AGENTS · MCP (BRAIN CLIENT)</h2>
           <div class="bsec-actions">
             <span class="bsec-meta" id="agents-meta">—</span>
-            <button class="opt-btn" id="agents-deploy-all">▶ DEPLOY TO ALL INSTALLED</button>
             <button class="opt-btn" id="agents-refresh">REFRESH</button>
           </div>
         </div>
-        <div class="agents-info">
-          One-click deploy brain MCP do wszystkich wykrytych agentów (Claude Desktop, Antigravity, Claude Code, Cursor, Windsurf).
-          <strong>Wpinają się 3 serwery</strong>: brain-vault (pliki vault), brain-library (PDF/EPUB), brain-rag (semantic search + skills + code index).
-          Twoje istniejące inne MCP serwery są zachowane.
+        <div class="agents-info" id="agents-remote-info">
+          Wpinanie brain MCP do agentów (Cursor / Claude Desktop / Claude Code / VS Code / Antigravity)
+          robi <strong>BRAIN Client</strong> — mała aplikacja w tray. Pobierz, uruchom dwukrotnie, sama
+          wykryje zainstalowanych agentów i wpina 3 serwery MCP: <code>brain-vault</code>,
+          <code>brain-library</code>, <code>brain-rag</code> (na <code>:7862</code>). Istniejące MCP serwery zostają nietknięte.
         </div>
-        <div id="agents-list" class="agents-list">loading…</div>
+        <div class="agents-list" style="margin-bottom:12px">
+          <div class="agent-card wired" style="grid-column:1/-1">
+            <div class="agent-head">
+              <span class="agent-icon">⬇</span>
+              <span class="agent-label">BRAIN Client — jeden plik, bez skryptów</span>
+              <span class="agent-badge wired">TRAY</span>
+            </div>
+            <div style="font-size:12px;color:var(--text-dim);margin:8px 0;line-height:1.6">
+              Pobierz dla swojego systemu, uruchom dwukrotnie. Instaluje się sam w tray i wpina MCP.
+              Bez PowerShell, bez Pythona. Źródło: <code>client/</code> w repo.
+            </div>
+            <div class="agent-actions" style="flex-wrap:wrap;gap:8px;align-items:center">
+              <a class="opt-btn" href="https://github.com/lobrzut/brain/releases/latest/download/BrainClient.exe" target="_blank" style="padding:10px 16px">🪟 Windows — BrainClient.exe</a>
+              <a class="opt-btn" href="https://github.com/lobrzut/brain/tree/main/client" target="_blank" style="padding:10px 16px">🐧 Linux — build from source</a>
+              <a class="opt-btn" href="https://github.com/lobrzut/brain/tree/main/client" target="_blank" style="padding:10px 16px">🍎 macOS — build from source</a>
+            </div>
+            <div style="font-size:11px;color:var(--text-dim);margin-top:8px">
+              Linux/macOS: <code>git clone</code> → <code>cd client</code> → <code>pip install -r requirements.txt</code> → <code>python -m brain_client tray</code>. Albo zbuduj jeden plik: <code>pyinstaller BrainClient-linux.spec</code>.
+            </div>
+          </div>
+        </div>
       </section>
 
 
@@ -850,7 +870,7 @@ używając tylko faktów z notatek.</pre>
 
         <section id="i-opt" class="ins-section">
           <h2>ZAKŁADKA OPTIONS</h2>
-          <p>Zarządzanie kluczami API dla 5 dostawców: Claude, OpenAI, Gemini, Grok, OpenRouter.</p>
+          <p>Zarządzanie kluczem API dla <strong>Claude</strong> (opcjonalnie — Haiku jako płatna alternatywa lokalnego Ollama w destylacji).</p>
           <p>Per wiersz: ikona, nazwa, stan (env / file / no key), input password, toggle, SAVE, TEST.</p>
           <ol>
             <li>Wklej klucz w input</li>
@@ -1025,10 +1045,6 @@ Model    : qwen2.5-coder:14b</pre>
           <table class="ins-table">
             <tr><th>Provider</th><th>Original</th><th>Proxy</th></tr>
             <tr><td>Anthropic</td><td><code>api.anthropic.com/v1/messages</code></td><td><code>127.0.0.1:7860/proxy/anthropic/v1/messages</code></td></tr>
-            <tr><td>OpenAI</td><td><code>api.openai.com/v1/chat/completions</code></td><td><code>127.0.0.1:7860/proxy/openai/v1/chat/completions</code></td></tr>
-            <tr><td>Gemini</td><td><code>generativelanguage.googleapis.com/v1beta/...</code></td><td><code>127.0.0.1:7860/proxy/google/v1beta/...</code></td></tr>
-            <tr><td>Grok</td><td><code>api.x.ai/v1/...</code></td><td><code>127.0.0.1:7860/proxy/xai/v1/...</code></td></tr>
-            <tr><td>OpenRouter</td><td><code>openrouter.ai/api/v1/...</code></td><td><code>127.0.0.1:7860/proxy/openrouter/api/v1/...</code></td></tr>
           </table>
           <h3>Przykład: Anthropic SDK</h3>
           <pre>import anthropic
@@ -1469,10 +1485,10 @@ Wczytaj pełną ekspercką wiedzę dla tego tematu i zastosuj ją w tej sesji.">
   </div>
 
   <footer class="footbar">
-    <span>brain v0.3</span>
+    <span id="footer-version">brain</span>
     <span id="last-update">never</span>
   </footer>
 
-  <script src="app.js?v=20260618a"></script>
+  <script src="app.js?v=20260623v"></script>
 </body>
 </html>

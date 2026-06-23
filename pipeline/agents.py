@@ -28,6 +28,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 ROOT     = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # portable-python: ensure pipeline/ on path
 from paths import data_root, python_executable  # noqa: E402
 BACKUPS  = data_root() / "agent-configs-backup"
 APPDATA  = Path(os.environ.get("APPDATA", str(Path.home() / "AppData" / "Roaming")))

@@ -32,10 +32,6 @@ THRESHOLDS_FILE = DATA_ROOT / "api-thresholds.json"
 
 PROVIDER_BASE = {
     "anthropic":  "https://api.anthropic.com",
-    "openai":     "https://api.openai.com",
-    "google":     "https://generativelanguage.googleapis.com",
-    "xai":        "https://api.x.ai",
-    "openrouter": "https://openrouter.ai",
 }
 
 # Ensure dirs
@@ -509,6 +505,7 @@ def api_status() -> dict[str, Any]:
         "config": {"model": CONFIG.get("default_model"),
                    "ollama_port": CONFIG.get("ollama_port"),
                    "edition": CONFIG.get("edition", "windows"),
+                   "version": CONFIG.get("version", "0.5.0"),
                    "root": str(ROOT),
                    "data_dir": str(DATA_ROOT)},
         "time": time.time(),
@@ -621,11 +618,6 @@ def api_test_key(provider: str) -> dict[str, Any]:
         endpoints = {
             "anthropic":  ("GET", "https://api.anthropic.com/v1/models",
                            {"x-api-key": key, "anthropic-version": "2023-06-01"}),
-            "openai":     ("GET", "https://api.openai.com/v1/models",
-                           {"Authorization": f"Bearer {key}"}),
-            "google":     ("GET", f"https://generativelanguage.googleapis.com/v1beta/models?key={key}", {}),
-            "xai":        ("GET", "https://api.x.ai/v1/models", {"Authorization": f"Bearer {key}"}),
-            "openrouter": ("GET", "https://openrouter.ai/api/v1/models", {"Authorization": f"Bearer {key}"}),
         }
         method, url, headers = endpoints[provider]
         r = requests.request(method, url, headers=headers, timeout=8)
@@ -907,7 +899,12 @@ def api_vault_redistill_run(body: RedistillRun) -> dict[str, Any]:
     log_path = LOGS_DIR / "redistill.log"
     log_file = open(log_path, "ab")
     env = os.environ.copy()
-    env["OLLAMA_HOST"] = f"127.0.0.1:{CONFIG.get('ollama_port',11434)}"
+    _opt_url = ""
+    try:
+        _opt_url = (json.loads((DATA_ROOT / "options.json").read_text(encoding="utf-8")).get("ollama_url") or "").strip()
+    except Exception: pass
+    env["OLLAMA_HOST"] = (_opt_url.replace("http://","").replace("https://","") if _opt_url
+                          else f"127.0.0.1:{CONFIG.get('ollama_port',11434)}")
     
     kwargs = {"stdout": log_file, "stderr": log_file, "env": env}
     if os.name == "nt": kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
@@ -1448,7 +1445,12 @@ def api_library_reindex() -> dict[str, Any]:
     log_path = LOGS_DIR / "rag.log"
     log_file = open(log_path, "ab")
     env = os.environ.copy()
-    env["OLLAMA_HOST"] = f"127.0.0.1:{CONFIG.get('ollama_port', 11434)}"
+    _opt_url = ""
+    try:
+        _opt_url = (json.loads((DATA_ROOT / "options.json").read_text(encoding="utf-8")).get("ollama_url") or "").strip()
+    except Exception: pass
+    env["OLLAMA_HOST"] = (_opt_url.replace("http://","").replace("https://","") if _opt_url
+                          else f"127.0.0.1:{CONFIG.get('ollama_port',11434)}")
     kwargs = {"stdout": log_file, "stderr": log_file, "env": env}
     if os.name == "nt": kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
     _rag_proc = subprocess.Popen(args, **kwargs)
@@ -2150,7 +2152,12 @@ def api_transcripts_run(body: DistillRun) -> dict[str, Any]:
     log_path = LOGS_DIR / "distill.log"
     log_file = open(log_path, "ab")
     env = os.environ.copy()
-    env["OLLAMA_HOST"] = f"127.0.0.1:{CONFIG.get('ollama_port',11434)}"
+    _opt_url = ""
+    try:
+        _opt_url = (json.loads((DATA_ROOT / "options.json").read_text(encoding="utf-8")).get("ollama_url") or "").strip()
+    except Exception: pass
+    env["OLLAMA_HOST"] = (_opt_url.replace("http://","").replace("https://","") if _opt_url
+                          else f"127.0.0.1:{CONFIG.get('ollama_port',11434)}")
     kwargs = {"stdout": log_file, "stderr": log_file, "env": env}
     if os.name == "nt": kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
     _distill_proc = subprocess.Popen(args, **kwargs)

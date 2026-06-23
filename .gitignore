@@ -80,3 +80,12 @@ tesseract_setup.exe
 
 # Windows setup generator output (lives outside repo)
 ../brain-setup.ps1
+
+# BRAIN Client — binaries ship via GitHub Releases, not git
+client/BrainClient
+client/BrainClient.exe
+client/build/
+client/dist/
+client/*.egg-info/
+client/__pycache__/
+client/brain_client/__pycache__/

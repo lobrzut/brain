@@ -1,4 +1,4 @@
-// Brain Dashboard frontend v0.3
+// Brain Dashboard frontend v0.5.0
 const ICONS = {
   ollama: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3c-2 0-3 2-3 4 0 1 0 2 1 3-1 1-1 2-1 3 0 3 2 5 5 5h6c3 0 5-2 5-5 0-1 0-2-1-3 1-1 1-2 1-3 0-2-1-4-3-4-1 0-2 0-3 1-1-1-2-1-3-1s-2 0-3 1c-1-1-2-1-3-1z"/><circle cx="9" cy="11" r="1" fill="currentColor"/><circle cx="15" cy="11" r="1" fill="currentColor"/></svg>',
   gpu:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="9" cy="12" r="2"/><circle cx="16" cy="12" r="2"/><path d="M3 10h2M3 14h2M19 10h2M19 14h2"/></svg>',
@@ -8,10 +8,6 @@ const ICONS = {
   graph:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="7" r="2"/><circle cx="19" cy="7" r="2"/><circle cx="12" cy="17" r="2"/><circle cx="5" cy="17" r="2"/><path d="M7 7h10M6 9l5 7M18 9l-5 7M7 17h3"/></svg>',
   book:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4v16h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v14"/></svg>',
   claude: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M5.3 18l5.5-13h2.4l5.5 13h-2.6l-1.2-2.9H9l-1.2 2.9H5.3zm4.4-4.9h4.5L12 7.8l-2.3 5.3z"/></svg>',
-  gemini: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.5 5.5c.5 1.7 1.3 2.5 3 3L22 12l-5.5 1.5c-1.7.5-2.5 1.3-3 3L12 22l-1.5-5.5c-.5-1.7-1.3-2.5-3-3L2 12l5.5-1.5c1.7-.5 2.5-1.3 3-3L12 2z"/></svg>',
-  grok:   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4l16 16M20 4L4 20"/></svg>',
-  openai: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M12 4l8 4.5v7L12 20l-8-4.5v-7L12 4z"/><path d="M12 4v8l8 4.5M12 20v-8L4 8M12 12l8-4.5M12 12l-8 4.5"/></svg>',
-  openrouter: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="5" r="1.5"/><circle cx="20" cy="5" r="1.5"/><circle cx="4" cy="19" r="1.5"/><circle cx="20" cy="19" r="1.5"/><path d="M5 6l5 4M19 6l-5 4M5 18l5-4M19 18l-5-4"/></svg>',
 };
 
 const $ = s => document.querySelector(s);
@@ -515,6 +511,7 @@ async function refresh() {
   oldGrid.replaceWith(grid);
 
   $('#last-update').textContent = `updated ${fmtTime()}`;
+  { const fv = $('#footer-version'); if (fv) fv.textContent = `brain v${data.config.version || '?'}`; }
   syncChatModelOptions();
 }
 
@@ -4194,7 +4191,7 @@ function _openCheatSheet() {
     <div class="cheat-modal">
       <div class="cheat-head">
         <span class="cheat-title">🧠 MCP CHEAT SHEET</span>
-        <span class="cheat-sub">działa w każdym agencie z brain MCP (Claude Desktop, Antigravity, Claude Code, Cursor, VS Code, Windsurf, Claude Free, antigravity-cli)</span>
+        <span class="cheat-sub">działa w każdym agencie z brain MCP (Claude Desktop, Antigravity, Claude Code, Cursor, VS Code, Windsurf, antigravity-cli)</span>
         <button class="cheat-close" title="zamknij">✕</button>
       </div>
       <div class="cheat-body">
