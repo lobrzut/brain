@@ -102,6 +102,19 @@ class Auth:
         self.set_credentials(d.get("username", "admin"), new)
         return True
 
+    def set_username(self, new_username: str) -> bool:
+        d = self._load()
+        if not (d.get("pwd_hash") and d.get("salt")):
+            return False
+        d["username"] = (new_username or "admin").strip() or "admin"
+        self.auth_file.write_text(json.dumps(d, indent=2), encoding="utf-8")
+        try:
+            if hasattr(os, "chmod"):
+                os.chmod(self.auth_file, 0o600)
+        except OSError:
+            pass
+        return True
+
     # ---- session token (hmac-signed, stateless) ----
     def issue_token(self, username: str) -> str:
         payload = {"sub": username, "exp": int(time.time()) + TOKEN_TTL}

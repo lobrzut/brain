@@ -572,7 +572,27 @@ async function doPull(name, progressEl) {
 // ============================================================================
 // CHAT WIDGET (talks to local Ollama)
 // ============================================================================
-function activeModel() { return localStorage.getItem('brain.activeModel') || (lastStatus?.ollama?.models?.[0]?.name); }
+// Pick a sane default chat model — qwen2.5:14b first, then qwen family by size,
+// then llama3, avoiding "chatty"/uncensored models that write nonsense.
+function pickOptimalModel(models) {
+  if (!models || !models.length) return undefined;
+  const lc = s => (s || '').toLowerCase();
+  const names = models.map(m => m.name);
+  const exact = names.find(n => lc(n) === 'qwen2.5:14b');
+  if (exact) return exact;
+  const bySize = arr => arr.slice().sort((a, b) => (b.size_gb || 0) - (a.size_gb || 0));
+  const qwen25 = bySize(models.filter(m => lc(m.name).includes('qwen2.5')));
+  if (qwen25.length) return qwen25[0].name;
+  const qwen = bySize(models.filter(m => lc(m.name).includes('qwen')));
+  if (qwen.length) return qwen[0].name;
+  const llama = names.find(n => lc(n).includes('llama3'));
+  if (llama) return llama;
+  const avoid = ['deepseek', 'uncensored', 'dolphin', 'abliterated', 'wizard'];
+  return names.find(n => !avoid.some(a => lc(n).includes(a))) || names[0];
+}
+function activeModel() {
+  return localStorage.getItem('brain.activeModel') || pickOptimalModel(lastStatus?.ollama?.models);
+}
 function syncChatModel() {
   const sel = $('#chat-model'); if (sel) sel.value = activeModel() || '';
 }
@@ -4641,11 +4661,39 @@ function initHero() {
   if (det) det.onclick = () => { showView('tools'); setTimeout(() => $('#sched-list')?.scrollIntoView({behavior:'smooth'}), 200); };
 }
 
+function initAccount() {
+  fetch('/api/auth/me').then(r => r.json()).then(me => {
+    const u = $('#acct-username'); if (u && me.username) u.value = me.username;
+  }).catch(() => {});
+  const uf = $('#acct-username-form');
+  if (uf) uf.onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = $('#acct-username-msg');
+    const r = await fetch('/api/auth/username', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: $('#acct-username').value }) });
+    const d = await r.json().catch(() => ({}));
+    msg.textContent = r.ok ? '✓ login zmieniony' : '✗ ' + (d.detail || 'błąd');
+    msg.className = 'acct-msg ' + (r.ok ? 'ok' : 'err');
+  };
+  const pf = $('#acct-password-form');
+  if (pf) pf.onsubmit = async (e) => {
+    e.preventDefault();
+    const msg = $('#acct-password-msg');
+    const n1 = $('#acct-pass-new').value, n2 = $('#acct-pass-new2').value;
+    if (n1 !== n2) { msg.textContent = '✗ hasła nie są takie same'; msg.className = 'acct-msg err'; return; }
+    const r = await fetch('/api/auth/password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ current: $('#acct-pass-current').value, new: n1 }) });
+    const d = await r.json().catch(() => ({}));
+    msg.textContent = r.ok ? '✓ hasło zmienione' : '✗ ' + (d.detail || 'błąd');
+    msg.className = 'acct-msg ' + (r.ok ? 'ok' : 'err');
+    if (r.ok) pf.reset();
+  };
+}
+
 let _dashboardBooted = false;
 function bootDashboard() {
   if (_dashboardBooted) return;
   _dashboardBooted = true;
   initHero();
+  initAccount();
   initWorkflowRibbon();
   initChat();
   initVault();
