@@ -109,6 +109,19 @@ async function refresh() {
   $('#meta-time').textContent = fmtTime();
   { const hv = $('#hero-vault-num'); if (hv && data.vault) hv.textContent = (data.vault.notes ?? '—');
     const hl = $('#hero-library-num'); if (hl && data.library) hl.textContent = (data.library.files_count ?? data.library.pdfs ?? '—'); }
+  { const st = $('#dash-status');
+    if (st) {
+      const sys = data.system || {}, g = data.gpu || {};
+      const model = activeModel() || (data.config && data.config.model) || '—';
+      const gpuTxt = (g && g.available) ? `GPU ${Math.round(g.temp_c)}°C` : 'GPU —';
+      st.innerHTML = `<span class="ds-ok"><span class="ds-dot"></span>System sprawny</span>`
+        + `<span>CPU ${Math.round(sys.cpu_pct || 0)}%</span>`
+        + `<span>${gpuTxt}</span>`
+        + `<span>Model: ${escapeHtml(model)}</span>`
+        + `<span>RAM ${(sys.ram_used_gb || 0).toFixed(1)} / ${Math.round(sys.ram_total_gb || 0)} GB</span>`;
+    }
+    renderDashAutopilot();
+  }
 
   // OLLAMA (with model picker + pull form + VRAM monitor)
   const o = data.ollama;
@@ -4589,6 +4602,23 @@ async function initConnectivity() {
 // ============================================================================
 // BOOT — gated behind the auth overlay (login / first-run setup)
 // ============================================================================
+async function renderDashAutopilot() {
+  const stateEl = $('#ap-state'), subEl = $('#ap-sub'), tog = $('#ap-toggle');
+  if (!stateEl) return;
+  try {
+    const d = await (await fetch('/api/schedule/status')).json();
+    const tasks = d.tasks || [];
+    const enabled = tasks.filter(t => t.enabled).length;
+    const running = d.currently_running;
+    const paused = !!(d.paused || d.all_paused);
+    stateEl.textContent = running ? `· pracuje: ${running}` : (paused ? '· wstrzymany' : '· bezczynny');
+    if (subEl) subEl.textContent = paused
+      ? 'wstrzymany — włącz, by wznowić zadania w tle'
+      : `${enabled} zadań w tle (uruchamiane gdy bezczynny)`;
+    if (tog) { tog.classList.toggle('on', !paused); tog.dataset.paused = paused ? '1' : '0'; }
+  } catch (e) { stateEl.textContent = '· —'; }
+}
+
 function initHero() {
   document.querySelectorAll('#hero-pillars [data-go]').forEach(el => {
     el.addEventListener('click', (e) => { e.stopPropagation(); showView(el.dataset.go); });
@@ -4601,6 +4631,14 @@ function initHero() {
     const vs = $('#vault-search');
     if (vs) { vs.value = q; vs.dispatchEvent(new Event('input')); setTimeout(() => vs.scrollIntoView({behavior:'smooth', block:'center'}), 150); }
   });
+  const tog = $('#ap-toggle');
+  if (tog) tog.onclick = async () => {
+    const paused = tog.dataset.paused === '1';
+    try { await fetch(paused ? '/api/schedule/resume' : '/api/schedule/pause-all', { method: 'POST' }); } catch (e) {}
+    renderDashAutopilot();
+  };
+  const det = $('#ap-details');
+  if (det) det.onclick = () => { showView('tools'); setTimeout(() => $('#sched-list')?.scrollIntoView({behavior:'smooth'}), 200); };
 }
 
 let _dashboardBooted = false;
