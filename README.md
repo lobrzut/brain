@@ -126,6 +126,11 @@ A small tray app that auto-detects installed agents and deploys all three MCP
 servers in one double-click — no PowerShell, no Python. Existing MCP entries
 are left untouched.
 
+The tray icon shows live status by colour — 🟢 server online + all agents
+wired, 🟡 partially wired, 🔴 offline. Right-click for a one-click **Deploy MCP
+everywhere**, open the dashboard, per-agent wire status, and settings (autostart,
+deploy-on-start, desktop shortcut).
+
 - **🪟 Windows** — [download `BrainClient.exe`](https://github.com/lobrzut/brain/releases/latest/download/BrainClient.exe)
 - **🐧 Linux / 🍎 macOS** — build from source:
   ```bash
