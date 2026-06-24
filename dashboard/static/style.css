@@ -1602,9 +1602,9 @@ td.lost .dedup-name { color: var(--magenta); }
   padding: 14px 16px; border-bottom: 1px solid var(--panel-border);
   background: rgba(0,0,0,0.3);
 }
-.chat-head-left { display: flex; align-items: center; gap: 10px; }
+.chat-head-left { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
 .chat-title {
-  font-size: 11px; letter-spacing: 4px; font-weight: 700;
+  font-size: 11px; letter-spacing: 4px; font-weight: 700; flex-shrink: 0;
   background: linear-gradient(90deg, var(--cyan), var(--magenta));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
@@ -1612,8 +1612,10 @@ td.lost .dedup-name { color: var(--magenta); }
   background: rgba(0,0,0,0.4); border: 1px solid var(--panel-border);
   color: var(--text); border-radius: 6px; padding: 4px 8px;
   font-family: var(--mono); font-size: 10px; outline: none;
+  max-width: 160px; min-width: 0; flex: 0 1 auto; text-overflow: ellipsis;
 }
-.chat-head-right { display: flex; gap: 2px; align-items: center; }
+/* buttons must never be pushed out / clipped by .chat overflow:hidden */
+.chat-head-right { display: flex; gap: 2px; align-items: center; flex-shrink: 0; }
 .chat-icon-btn {
   background: transparent; border: none; color: var(--text-dim);
   padding: 6px; cursor: pointer; border-radius: 6px;
