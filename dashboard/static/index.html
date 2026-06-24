@@ -7,12 +7,10 @@
   <link rel="icon" type="image/png" sizes="512x512" href="brain-emblem.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="style.css?v=20260624c">
-  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <!-- Pin to UMD build that exposes window.THREE (Cosmos theme needs it).
-       Newer 3d-force-graph (1.7+) bundles its own ES-modular three internally,
-       so we MUST explicitly load three.js UMD ourselves to get a global. -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.158.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.73.4/dist/3d-force-graph.min.js"></script>
+  <script>try{var th=localStorage.getItem('brain.theme');if(th&&th!=='default')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+  <script src="vendor/d3.v7.min.js"></script>
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/3d-force-graph.min.js"></script>
 </head>
 <body>
   <div class="bg-grid"></div>
