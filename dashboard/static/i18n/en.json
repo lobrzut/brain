@@ -16,7 +16,7 @@
   "setup.mismatch": "Passwords do not match",
   "setup.short": "Password too short (min. 4 characters)",
   "nav.dashboard": "Dashboard",
-  "nav.brain": "Brain",
+  "nav.brain": "Knowledge",
   "nav.pipeline": "Pipeline",
   "nav.tools": "Tools",
   "nav.options": "Options",

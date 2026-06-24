@@ -107,6 +107,8 @@ async function refresh() {
   $('#meta-model').textContent = activeModel() || data.config.model || '-';
   $('#meta-uptime').textContent = fmtUptime(data.system.uptime_sec);
   $('#meta-time').textContent = fmtTime();
+  { const hv = $('#hero-vault-num'); if (hv && data.vault) hv.textContent = (data.vault.notes ?? '—');
+    const hl = $('#hero-library-num'); if (hl && data.library) hl.textContent = (data.library.files_count ?? data.library.pdfs ?? '—'); }
 
   // OLLAMA (with model picker + pull form + VRAM monitor)
   const o = data.ollama;
@@ -4587,10 +4589,25 @@ async function initConnectivity() {
 // ============================================================================
 // BOOT — gated behind the auth overlay (login / first-run setup)
 // ============================================================================
+function initHero() {
+  document.querySelectorAll('#hero-pillars [data-go]').forEach(el => {
+    el.addEventListener('click', (e) => { e.stopPropagation(); showView(el.dataset.go); });
+  });
+  const form = $('#hero-search');
+  if (form) form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const q = ($('#hero-search-input')?.value || '').trim();
+    showView('brain');
+    const vs = $('#vault-search');
+    if (vs) { vs.value = q; vs.dispatchEvent(new Event('input')); setTimeout(() => vs.scrollIntoView({behavior:'smooth', block:'center'}), 150); }
+  });
+}
+
 let _dashboardBooted = false;
 function bootDashboard() {
   if (_dashboardBooted) return;
   _dashboardBooted = true;
+  initHero();
   initWorkflowRibbon();
   initChat();
   initVault();
