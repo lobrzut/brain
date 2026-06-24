@@ -26,7 +26,7 @@ Install scripts support **Polish** and **English** (`locale.env`: `LANG=pl` or `
 
 **Pipeline:** transcript distillation from Claude/Cursor/Antigravity → vault notes, redistill, dedupe, code index, scheduled background jobs.
 
-**Dashboard** (`:7860`): service control, chat widget, agent workflow prompts, Claude API key (optional — for Haiku distillation), GPU/VRAM monitor.
+**Dashboard** (`:7860`): service control, chat widget, agent workflow prompts, Claude API key (optional — for Haiku distillation), GPU/VRAM monitor. Single-user **login** (first run sets the admin password) and a **4-language UI** — Polski / English / Deutsch / Українська, switchable from the top bar.
 
 ---
 
@@ -177,9 +177,10 @@ Cached 60 s, no auth. Toggle in **Dashboard → OPTIONS → CONNECTIVITY**
 ## Security notes
 
 - `data/api-keys.json` is **gitignored** — never commit API keys.
+- `data/auth.json` (password hash) and `data/.secret` (cookie key) are **gitignored** — per-machine, never committed.
 - `data/vault/` is **your private knowledge** — excluded from git.
 - Linux dashboard binds to `0.0.0.0` by default — use firewall/VPN for LAN-only access.
-- Dashboard has no built-in auth (single-user homelab design).
+- Single-user **login** gates the dashboard once you set a password on first run; `/api/status` and `/stats` stay public (for the tray client and external status tiles). To reset a forgotten password, delete `data/auth.json` and set it again on next load.
 
 ---
 
