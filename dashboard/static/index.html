@@ -6,7 +6,7 @@
   <title>BRAIN</title>
   <link rel="icon" type="image/png" sizes="512x512" href="brain-emblem.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20260624a">
+  <link rel="stylesheet" href="style.css?v=20260624b">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <!-- Pin to UMD build that exposes window.THREE (Cosmos theme needs it).
        Newer 3d-force-graph (1.7+) bundles its own ES-modular three internally,
@@ -75,11 +75,22 @@
     </nav>
 
     <div class="meta">
-      <div class="meta-item"><span class="meta-label" data-i18n="meta.model">MODEL</span><span id="meta-model">-</span></div>
-      <div class="meta-item"><span class="meta-label" data-i18n="meta.uptime">UPTIME</span><span id="meta-uptime">-</span></div>
-      <div class="meta-item"><span class="meta-label" data-i18n="meta.time">TIME</span><span id="meta-time">-</span></div>
-      <select data-lang-select class="topbar-lang" title="Language"></select>
-      <button class="opt-btn topbar-logout hidden" id="logout-btn" data-i18n="nav.logout" title="Log out">Wyloguj</button>
+      <div class="meta-stats">
+        <div class="meta-item"><span class="meta-label" data-i18n="meta.model">MODEL</span><span id="meta-model">-</span></div>
+        <div class="meta-item"><span class="meta-label" data-i18n="meta.uptime">UPTIME</span><span id="meta-uptime">-</span></div>
+        <div class="meta-item"><span class="meta-label" data-i18n="meta.time">TIME</span><span id="meta-time">-</span></div>
+      </div>
+      <div class="lang-dd" id="lang-dd" title="Language">
+        <button class="lang-dd-btn" type="button">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.8 2.6 15.2 0 18M12 3c-2.6 2.8-2.6 15.2 0 18"/></svg>
+          <span data-lang-current>PL</span>
+          <span class="lang-dd-caret">▾</span>
+        </button>
+        <ul class="lang-dd-menu"></ul>
+      </div>
+      <button class="icon-btn topbar-logout hidden" id="logout-btn" title="Wyloguj" aria-label="Logout">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg>
+      </button>
     </div>
   </header>
 
@@ -1528,7 +1539,7 @@ Wczytaj pełną ekspercką wiedzę dla tego tematu i zastosuj ją w tej sesji.">
     <span id="last-update">never</span>
   </footer>
 
-  <script src="i18n.js?v=20260624a"></script>
-  <script src="app.js?v=20260624a"></script>
+  <script src="i18n.js?v=20260624b"></script>
+  <script src="app.js?v=20260624b"></script>
 </body>
 </html>

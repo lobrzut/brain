@@ -44,18 +44,46 @@ function applyI18n() {
   });
 }
 
-// Populate a <select> with the language options and wire switching.
+// Switch language and sync every switcher (native selects + custom dropdowns).
+async function setLanguage(lang, onChange) {
+  await loadLanguage(lang);
+  applyI18n();
+  document.querySelectorAll('select[data-lang-select]').forEach((s) => { s.value = currentLang; });
+  document.querySelectorAll('[data-lang-current]').forEach((el) => { el.textContent = currentLang.toUpperCase(); });
+  document.querySelectorAll('.lang-dd-menu li[data-lang]').forEach((li) => {
+    li.classList.toggle('active', li.dataset.lang === currentLang);
+  });
+  if (onChange) onChange(currentLang);
+}
+
+// Wire native <select data-lang-select> (login card) + custom .lang-dd (top bar).
 function initLangSwitchers(onChange) {
   document.querySelectorAll('select[data-lang-select]').forEach((sel) => {
-    sel.innerHTML = SUPPORTED_LANGS.map(
-      (l) => `<option value="${l}">${LANG_NAMES[l]}</option>`
-    ).join('');
+    sel.innerHTML = SUPPORTED_LANGS.map((l) => `<option value="${l}">${LANG_NAMES[l]}</option>`).join('');
     sel.value = currentLang;
-    sel.onchange = async () => {
-      await loadLanguage(sel.value);
-      applyI18n();
-      document.querySelectorAll('select[data-lang-select]').forEach((s) => { s.value = currentLang; });
-      if (onChange) onChange(currentLang);
-    };
+    sel.onchange = () => setLanguage(sel.value, onChange);
   });
+
+  document.querySelectorAll('.lang-dd').forEach((dd) => {
+    const menu = dd.querySelector('.lang-dd-menu');
+    menu.innerHTML = SUPPORTED_LANGS.map(
+      (l) => `<li data-lang="${l}" class="${l === currentLang ? 'active' : ''}">${LANG_NAMES[l]}</li>`
+    ).join('');
+    const cur = dd.querySelector('[data-lang-current]');
+    if (cur) cur.textContent = currentLang.toUpperCase();
+    dd.querySelector('.lang-dd-btn').onclick = (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.lang-dd.open').forEach((o) => { if (o !== dd) o.classList.remove('open'); });
+      dd.classList.toggle('open');
+    };
+    menu.querySelectorAll('li').forEach((li) => {
+      li.onclick = () => { dd.classList.remove('open'); setLanguage(li.dataset.lang, onChange); };
+    });
+  });
+
+  if (!window._langDocClose) {
+    window._langDocClose = true;
+    document.addEventListener('click', () =>
+      document.querySelectorAll('.lang-dd.open').forEach((d) => d.classList.remove('open')));
+  }
 }
