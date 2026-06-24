@@ -4584,24 +4584,97 @@ async function initConnectivity() {
   };
 }
 
-initWorkflowRibbon();
-initChat();
-initVault();
-initAgents();
-initSkills();
-initCliSkills();
-initCodeIndex();
-initSchedule();
-initLogs();
-initGraph();
-initLibrary();
-initTranscripts();
-initRedistill();
-initMCP();
-initBackups();
-initIdleGuard();
-initConnectivity();
+// ============================================================================
+// BOOT — gated behind the auth overlay (login / first-run setup)
+// ============================================================================
+let _dashboardBooted = false;
+function bootDashboard() {
+  if (_dashboardBooted) return;
+  _dashboardBooted = true;
+  initWorkflowRibbon();
+  initChat();
+  initVault();
+  initAgents();
+  initSkills();
+  initCliSkills();
+  initCodeIndex();
+  initSchedule();
+  initLogs();
+  initGraph();
+  initLibrary();
+  initTranscripts();
+  initRedistill();
+  initMCP();
+  initBackups();
+  initIdleGuard();
+  initConnectivity();
 
-refresh();
-setInterval(refresh, 3000);
-setInterval(() => $('#meta-time').textContent = fmtTime(), 1000);
+  refresh();
+  setInterval(refresh, 3000);
+  setInterval(() => $('#meta-time').textContent = fmtTime(), 1000);
+}
+
+function _showAuth(which) {
+  const ov = $('#auth-overlay');
+  if (!ov) { bootDashboard(); return; }   // overlay missing -> fail open
+  if (!which) { ov.classList.add('hidden'); return; }
+  $('#login-form').classList.toggle('hidden', which !== 'login');
+  $('#setup-form').classList.toggle('hidden', which !== 'setup');
+  ov.classList.remove('hidden');
+  const focusId = which === 'login' ? '#login-pass' : '#setup-user';
+  setTimeout(() => $(focusId)?.focus(), 50);
+}
+
+function _reveal(configured) {
+  _showAuth(null);
+  const lo = $('#logout-btn');
+  if (lo) lo.classList.toggle('hidden', !configured);
+  bootDashboard();
+}
+
+async function _postJSON(url, body) {
+  return fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+async function initAuthGate() {
+  try { await loadLanguage(detectLang()); } catch (e) { /* fall back to keys */ }
+  applyI18n();
+  initLangSwitchers();
+
+  const lf = $('#login-form');
+  if (lf) lf.onsubmit = async (e) => {
+    e.preventDefault();
+    const err = $('#login-error'); err.classList.add('hidden');
+    const r = await _postJSON('/api/auth/login', { username: $('#login-user').value, password: $('#login-pass').value });
+    if (r.ok) { _reveal(true); }
+    else { err.textContent = t(r.status === 429 ? 'login.locked' : 'login.error'); err.classList.remove('hidden'); }
+  };
+
+  const sf = $('#setup-form');
+  if (sf) sf.onsubmit = async (e) => {
+    e.preventDefault();
+    const err = $('#setup-error'); err.classList.add('hidden');
+    const p1 = $('#setup-pass').value, p2 = $('#setup-pass2').value;
+    if (p1 !== p2) { err.textContent = t('setup.mismatch'); err.classList.remove('hidden'); return; }
+    if (p1.length < 4) { err.textContent = t('setup.short'); err.classList.remove('hidden'); return; }
+    const r = await _postJSON('/api/auth/setup', { username: $('#setup-user').value, password: p1 });
+    if (r.ok) { _reveal(true); }
+    else { err.textContent = t('setup.short'); err.classList.remove('hidden'); }
+  };
+
+  const lo = $('#logout-btn');
+  if (lo) lo.onclick = async () => { try { await fetch('/api/auth/logout', { method: 'POST' }); } catch (e) {} location.reload(); };
+
+  let me;
+  try { me = await (await fetch('/api/auth/me')).json(); }
+  catch (e) { _reveal(false); return; }   // auth check failed -> fail open
+  if (!me.configured) _showAuth('setup');
+  else if (!me.authenticated) _showAuth('login');
+  else _reveal(true);
+}
+
+initAuthGate();

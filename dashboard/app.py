@@ -5,12 +5,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 import psutil, requests, httpx
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request, Response, UploadFile, File, Form
+from fastapi.responses import FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from mcp_runner import MCPManager
+from auth import Auth, COOKIE_NAME, TOKEN_TTL
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "pipeline"))
@@ -51,6 +52,102 @@ async def add_no_cache_headers(request: Request, call_next):
 _start_time = time.time()
 _mcp = MCPManager(MCP_CONFIG, LOGS_DIR)
 atexit.register(_mcp.stop_all)
+
+# ---------------------------------------------------------------------------
+# Auth — single-user login gate (see auth.py). Public: the SPA shell, static
+# assets, /api/auth/*, /api/status (tray health) and /stats (external tiles).
+# Everything else under /api/ needs a valid session cookie.
+# ---------------------------------------------------------------------------
+AUTH = Auth(DATA_ROOT)
+_PUBLIC_API = {"/api/status", "/stats", "/api/auth/me", "/api/auth/login", "/api/auth/setup"}
+
+
+def _auth_enabled() -> bool:
+    return AUTH.is_configured()
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else "?"
+
+
+@app.middleware("http")
+async def auth_gate(request: Request, call_next):
+    path = request.url.path
+    if _auth_enabled() and path.startswith("/api/") and path not in _PUBLIC_API:
+        token = request.cookies.get(COOKIE_NAME)
+        if not AUTH.verify_token(token):
+            return JSONResponse({"detail": "auth required"}, status_code=401)
+    return await call_next(request)
+
+
+class _LoginBody(BaseModel):
+    username: str = ""
+    password: str = ""
+
+
+class _PasswordBody(BaseModel):
+    current: str = ""
+    new: str = ""
+
+
+def _set_session(response: Response, username: str) -> None:
+    response.set_cookie(
+        COOKIE_NAME, AUTH.issue_token(username),
+        max_age=TOKEN_TTL, httponly=True, samesite="lax", path="/",
+    )
+
+
+@app.get("/api/auth/me")
+def auth_me(request: Request):
+    user = AUTH.verify_token(request.cookies.get(COOKIE_NAME))
+    return {
+        "configured": AUTH.is_configured(),
+        "authenticated": bool(user) or not AUTH.is_configured(),
+        "username": user or (AUTH.username() if AUTH.is_configured() else None),
+    }
+
+
+@app.post("/api/auth/setup")
+def auth_setup(body: _LoginBody, response: Response):
+    if AUTH.is_configured():
+        raise HTTPException(status_code=403, detail="already configured")
+    if len((body.password or "").strip()) < 4:
+        raise HTTPException(status_code=400, detail="password too short (min 4)")
+    AUTH.set_credentials(body.username or "admin", body.password)
+    _set_session(response, AUTH.username())
+    return {"ok": True, "username": AUTH.username()}
+
+
+@app.post("/api/auth/login")
+def auth_login(body: _LoginBody, request: Request, response: Response):
+    key = f"{_client_ip(request)}:{(body.username or '?').lower()}"
+    locked = AUTH.lockout_seconds(key)
+    if locked:
+        raise HTTPException(status_code=429, detail=f"too many attempts, wait {locked}s")
+    if not AUTH.verify(body.username, body.password):
+        AUTH.register_failure(key)
+        raise HTTPException(status_code=401, detail="bad credentials")
+    AUTH.reset_attempts(key)
+    _set_session(response, AUTH.username())
+    return {"ok": True, "username": AUTH.username()}
+
+
+@app.post("/api/auth/logout")
+def auth_logout(response: Response):
+    response.delete_cookie(COOKIE_NAME, path="/")
+    return {"ok": True}
+
+
+@app.post("/api/auth/password")
+def auth_password(body: _PasswordBody, request: Request, response: Response):
+    if not AUTH.verify_token(request.cookies.get(COOKIE_NAME)):
+        raise HTTPException(status_code=401, detail="auth required")
+    if len((body.new or "").strip()) < 4:
+        raise HTTPException(status_code=400, detail="password too short (min 4)")
+    if not AUTH.change_password(body.current, body.new):
+        raise HTTPException(status_code=400, detail="wrong current password")
+    _set_session(response, AUTH.username())
+    return {"ok": True}
 
 # Transcript distillation subprocess handle
 _distill_proc: subprocess.Popen | None = None

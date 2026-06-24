@@ -6,7 +6,7 @@
   <title>BRAIN</title>
   <link rel="icon" type="image/png" sizes="512x512" href="brain-emblem.png">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="style.css?v=20260623c">
+  <link rel="stylesheet" href="style.css?v=20260624a">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <!-- Pin to UMD build that exposes window.THREE (Cosmos theme needs it).
        Newer 3d-force-graph (1.7+) bundles its own ES-modular three internally,
@@ -19,6 +19,43 @@
   <div class="bg-glow glow-1"></div>
   <div class="bg-glow glow-2"></div>
 
+  <!-- AUTH GATE — login + first-run setup overlays (hidden until boot decides) -->
+  <div id="auth-overlay" class="auth-overlay hidden">
+    <div class="auth-card">
+      <img class="auth-logo" src="brain-emblem.png" alt="">
+      <div class="auth-brand"><span class="brand-name">BRAIN</span><span class="brand-sub" data-i18n="app.subtitle">AI HUB</span></div>
+
+      <form id="login-form" class="auth-form hidden">
+        <h1 data-i18n="login.title">Logowanie</h1>
+        <p class="auth-sub" data-i18n="login.subtitle">Self-hosted AI hub</p>
+        <label data-i18n="login.user">Użytkownik</label>
+        <input type="text" id="login-user" autocomplete="username" value="admin" required>
+        <label data-i18n="login.password">Hasło</label>
+        <input type="password" id="login-pass" autocomplete="current-password" required>
+        <p id="login-error" class="auth-error hidden"></p>
+        <button type="submit" class="opt-btn auth-submit" data-i18n="login.submit">Zaloguj się</button>
+      </form>
+
+      <form id="setup-form" class="auth-form hidden">
+        <h1 data-i18n="setup.title">Utwórz konto administratora</h1>
+        <p class="auth-sub" data-i18n="setup.subtitle">Pierwsze uruchomienie — ustaw login</p>
+        <label data-i18n="setup.user">Użytkownik</label>
+        <input type="text" id="setup-user" autocomplete="username" value="admin" required>
+        <label data-i18n="setup.password">Hasło</label>
+        <input type="password" id="setup-pass" autocomplete="new-password" minlength="4" required>
+        <label data-i18n="setup.password2">Potwierdź hasło</label>
+        <input type="password" id="setup-pass2" autocomplete="new-password" minlength="4" required>
+        <p id="setup-error" class="auth-error hidden"></p>
+        <button type="submit" class="opt-btn auth-submit" data-i18n="setup.submit">Utwórz konto</button>
+      </form>
+
+      <div class="auth-lang">
+        <span data-i18n="lang.label">Język</span>
+        <select data-lang-select class="auth-lang-select"></select>
+      </div>
+    </div>
+  </div>
+
   <header class="topbar">
     <div class="brand">
       <img class="brand-icon" src="brain-emblem.png?v=20260623" alt="">
@@ -29,18 +66,20 @@
     </div>
 
     <nav class="tabs">
-      <button class="tab active" data-view="dashboard">DASHBOARD</button>
-      <button class="tab" data-view="brain">BRAIN</button>
-      <button class="tab" data-view="pipeline">PIPELINE</button>
-      <button class="tab" data-view="tools">TOOLS</button>
-      <button class="tab" data-view="options">OPTIONS</button>
-      <button class="tab" data-view="instrukcja">HELP</button>
+      <button class="tab active" data-view="dashboard" data-i18n="nav.dashboard">DASHBOARD</button>
+      <button class="tab" data-view="brain" data-i18n="nav.brain">BRAIN</button>
+      <button class="tab" data-view="pipeline" data-i18n="nav.pipeline">PIPELINE</button>
+      <button class="tab" data-view="tools" data-i18n="nav.tools">TOOLS</button>
+      <button class="tab" data-view="options" data-i18n="nav.options">OPTIONS</button>
+      <button class="tab" data-view="instrukcja" data-i18n="nav.help">HELP</button>
     </nav>
 
     <div class="meta">
-      <div class="meta-item"><span class="meta-label">MODEL</span><span id="meta-model">-</span></div>
-      <div class="meta-item"><span class="meta-label">UPTIME</span><span id="meta-uptime">-</span></div>
-      <div class="meta-item"><span class="meta-label">TIME</span><span id="meta-time">-</span></div>
+      <div class="meta-item"><span class="meta-label" data-i18n="meta.model">MODEL</span><span id="meta-model">-</span></div>
+      <div class="meta-item"><span class="meta-label" data-i18n="meta.uptime">UPTIME</span><span id="meta-uptime">-</span></div>
+      <div class="meta-item"><span class="meta-label" data-i18n="meta.time">TIME</span><span id="meta-time">-</span></div>
+      <select data-lang-select class="topbar-lang" title="Language"></select>
+      <button class="opt-btn topbar-logout hidden" id="logout-btn" data-i18n="nav.logout" title="Log out">Wyloguj</button>
     </div>
   </header>
 
@@ -1489,6 +1528,7 @@ Wczytaj pełną ekspercką wiedzę dla tego tematu i zastosuj ją w tej sesji.">
     <span id="last-update">never</span>
   </footer>
 
-  <script src="app.js?v=20260623c"></script>
+  <script src="i18n.js?v=20260624a"></script>
+  <script src="app.js?v=20260624a"></script>
 </body>
 </html>

@@ -89,3 +89,7 @@ client/dist/
 client/*.egg-info/
 client/__pycache__/
 client/brain_client/__pycache__/
+
+# Auth — per-machine secrets, never commit
+data/auth.json
+data/.secret
