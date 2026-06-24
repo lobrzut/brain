@@ -142,6 +142,9 @@ class BrainTray:
             else "Utwórz skrót na pulpicie"
         )
         return [
+            self._pystray.MenuItem("⚙️  Ustawienia", None, enabled=False),
+            self._pystray.Menu.SEPARATOR,
+            self._pystray.MenuItem("Przy starcie", None, enabled=False),
             self._pystray.MenuItem(
                 self._autostart_label(),
                 self._toggle_autostart,
@@ -158,6 +161,7 @@ class BrainTray:
                 checked=lambda _item: self._cfg.get("open_browser_on_start", False),
             ),
             self._pystray.Menu.SEPARATOR,
+            self._pystray.MenuItem("Instalacja", None, enabled=False),
             self._pystray.MenuItem(
                 f"🔗  {shortcut_label}",
                 self._on_create_shortcut,
