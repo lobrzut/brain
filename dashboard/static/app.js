@@ -4231,8 +4231,8 @@ function _openCheatSheet() {
 function initWorkflowRibbon() {
   const ribbon = $('#workflow-ribbon');
   if (!ribbon) return;
-  // Restore collapsed state
-  if (localStorage.getItem('brain.workflow.collapsed') === '1') {
+  // Collapsed by default — expand only if the user explicitly opened it before
+  if (localStorage.getItem('brain.workflow.collapsed') !== '0') {
     ribbon.classList.add('collapsed');
   }
   const toggle = $('#workflow-toggle');
