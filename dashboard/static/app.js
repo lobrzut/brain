@@ -3002,10 +3002,11 @@ async function pollRedistill() {
 // TOOLS: MCP
 // ============================================================================
 async function renderMCP() {
+  const list = $('#mcp-list');
+  if (!list) return;   // panel removed (generic MCP launcher unused in brain)
   try {
     const r = await fetch('/api/mcp/list');
     const d = await r.json();
-    const list = $('#mcp-list');
     if (!d.servers.length) {
       list.innerHTML = `<div class="mcp-empty">no MCP servers configured.<br>Click ADD SERVER. Common examples:<br><code style="font-size:10px">npx -y @modelcontextprotocol/server-filesystem &lt;path&gt;</code></div>`;
       return;
@@ -3052,6 +3053,7 @@ async function mcpAction(act, sid) {
 }
 
 function initMCP() {
+  if (!$('#mcp-add')) return;   // MCP-servers panel removed
   $('#mcp-add').onclick = () => $('#mcp-form').classList.toggle('hidden');
   $('#mcp-f-cancel').onclick = () => $('#mcp-form').classList.add('hidden');
   $('#mcp-f-save').onclick = async () => {
