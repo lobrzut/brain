@@ -163,7 +163,7 @@ async function refresh() {
              <div id="oc-progress" class="oc-progress"></div>
            </div>`,
   });
-  grid.appendChild(ollamaTile);
+  { const slot = $('#ollama-slot'); if (slot) slot.replaceChildren(ollamaTile); else grid.appendChild(ollamaTile); }
   const sel = ollamaTile.querySelector('#oc-active');
   if (sel) sel.onchange = () => { localStorage.setItem('brain.activeModel', sel.value); $('#meta-model').textContent = sel.value; syncChatModel(); };
   const pullBtn = ollamaTile.querySelector('#oc-pull-btn');

@@ -2282,3 +2282,6 @@ td.lost .dedup-name { color: var(--magenta); }
 .acct-msg.ok { color: var(--green); }
 .acct-msg.err { color: #ff7a7a; }
 @media (max-width: 720px) { .acct-grid { grid-template-columns: 1fr; } }
+
+.ollama-slot { max-width: 560px; }
+.ollama-slot .tile { width: 100%; }
