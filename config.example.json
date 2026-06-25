@@ -1,5 +1,5 @@
 {
-  "version": "0.5.0",
+  "version": "0.6.0",
   "edition": "windows",
   "root": "C:\\path\\to\\brain",
   "ollama_port": 11434,
@@ -15,9 +15,29 @@
     "HipPath": null
   },
   "services": [
-    { "title": "Ollama", "url": "http://127.0.0.1:11434", "id": "ollama", "icon": "ollama" },
-    { "title": "Vault", "url": null, "id": "vault", "icon": "vault" },
-    { "title": "Vector DB", "url": null, "id": "vectordb", "icon": "db" },
-    { "title": "Knowledge Graph", "url": "/graph", "id": "graph", "icon": "graph" }
+    {
+      "title": "Ollama",
+      "url": "http://127.0.0.1:11434",
+      "id": "ollama",
+      "icon": "ollama"
+    },
+    {
+      "title": "Vault",
+      "url": null,
+      "id": "vault",
+      "icon": "vault"
+    },
+    {
+      "title": "Vector DB",
+      "url": null,
+      "id": "vectordb",
+      "icon": "db"
+    },
+    {
+      "title": "Knowledge Graph",
+      "url": "/graph",
+      "id": "graph",
+      "icon": "graph"
+    }
   ]
 }
