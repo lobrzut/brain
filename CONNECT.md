@@ -18,7 +18,7 @@ Praktyczny przewodnik. Wszystko zakłada że `start.ps1` jest uruchomiony.
 | API keys | `<brain>/data/api-keys.json` | Plaintext, backup ostrożnie |
 | Backups | `<brain>/data/backups/` | ZIP-y |
 
-Provider IDs w proxy: `anthropic`
+Provider IDs w proxy: `anthropic` · `openai` · `google` · `xai` · `openrouter`
 
 ---
 
@@ -80,6 +80,10 @@ Provider URL → proxy URL:
 | Provider | Oryginalny URL | Proxy URL |
 |---|---|---|
 | Anthropic | `https://api.anthropic.com/v1/messages` | `http://127.0.0.1:7860/proxy/anthropic/v1/messages` |
+| OpenAI | `https://api.openai.com/v1/chat/completions` | `http://127.0.0.1:7860/proxy/openai/v1/chat/completions` |
+| Gemini | `https://generativelanguage.googleapis.com/v1beta/models/...` | `http://127.0.0.1:7860/proxy/google/v1beta/models/...` |
+| Grok | `https://api.x.ai/v1/chat/completions` | `http://127.0.0.1:7860/proxy/xai/v1/chat/completions` |
+| OpenRouter | `https://openrouter.ai/api/v1/chat/completions` | `http://127.0.0.1:7860/proxy/openrouter/api/v1/chat/completions` |
 
 **Klient nie musi (i nie powinien) wysyłać klucza** — dashboard go nadkłada.
 

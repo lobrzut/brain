@@ -26,7 +26,6 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(Path(__file__).resolve().parent))  # portable-python: ensure pipeline/ on path
 from paths import data_root  # noqa: E402
 DATA = data_root()
 RAW = DATA / "brain-raw" / "normalized"

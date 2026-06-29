@@ -1,3 +1,7 @@
 {
-  "anthropic": { "enabled": false, "key": "" }
+  "anthropic": { "enabled": false, "key": "" },
+  "openai": { "enabled": false, "key": "" },
+  "google": { "enabled": false, "key": "" },
+  "xai": { "enabled": false, "key": "" },
+  "openrouter": { "enabled": false, "key": "" }
 }
