@@ -19,7 +19,10 @@ const OLLAMA = 'http://127.0.0.1:11434';
 // ============================================================================
 const VIEW_HANDLERS = {
   brain:    () => { renderVault(); renderDedup(); renderGraph(); renderLibrary(); renderUserProfile(); },
-  pipeline: () => { renderTranscripts(); renderCodeIndex(); },
+  // renderTranscripts() removed — server-side distillation pipeline was
+  // removed (Phase B), its panel is hidden in HTML, and this call polled
+  // now-404 /api/transcripts/* endpoints every tab switch.
+  pipeline: () => { renderCodeIndex(); },
   tools:    () => { renderAgents(); renderSkills(); renderCliSkills(); renderSchedule(); renderMCP(); renderLogs(); renderBackups(); renderIdleGuard(); },
   options:  () => renderOptions(),
   instrukcja: () => initInstrukcjaScrollSpy(),
@@ -4707,8 +4710,10 @@ function bootDashboard() {
   initLogs();
   initGraph();
   initLibrary();
-  initTranscripts();
-  initRedistill();
+  // initTranscripts()/initRedistill() removed — wired buttons in panels that
+  // are now hidden (Phase B, server-side distillation removed), and
+  // initRedistill() unconditionally started a setInterval(pollRedistill, 2500)
+  // that ran forever hitting now-404 /api/vault/redistill/status.
   initMCP();
   initBackups();
   initIdleGuard();

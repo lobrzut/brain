@@ -332,8 +332,14 @@ Podaj ścieżkę pliku.</pre>
   <main id="view-pipeline" class="view">
     <div class="tools-wrap">
 
-      <!-- TRANSCRIPT DISTILLATION -->
-      <section class="brain-section">
+      <!-- TRANSCRIPT DISTILLATION — server-side pipeline removed (Phase B,
+           see project memory: brain-light-reliqua-heavy). Distillation now
+           happens client-side. Elements kept in the DOM (hidden) so the JS
+           below — which does unguarded `$('#id').onclick = ...` — doesn't
+           throw on a null element; only display is suppressed. Safe to
+           delete this markup + its JS wiring together in a follow-up pass
+           that includes a browser test. -->
+      <section class="brain-section" style="display:none">
         <div class="bsec-head">
           <h2>TRANSCRIPT DISTILLATION</h2>
           <div class="bsec-actions">
@@ -357,8 +363,8 @@ Podaj ścieżkę pliku.</pre>
         </div>
       </section>
 
-      <!-- VAULT RE-DISTILLATION -->
-      <section class="brain-section" id="redistill-panel">
+      <!-- VAULT RE-DISTILLATION — same removal, same reason as above. -->
+      <section class="brain-section" id="redistill-panel" style="display:none">
         <div class="bsec-head">
           <h2>VAULT RE-DISTILLATION (NOTE QUALITY)</h2>
           <div class="bsec-actions">
