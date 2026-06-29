@@ -9,6 +9,7 @@ VENV_DIR="${BRAIN_VENV:-$REPO_ROOT/.venv}"
 MODEL="${BRAIN_MODEL:-qwen2.5:14b}"
 DASH_PORT="${BRAIN_DASHBOARD_PORT:-7860}"
 MCP_PORT="${BRAIN_MCP_PORT:-7862}"
+MCP_UPSTREAM_PORT="${BRAIN_MCP_UPSTREAM_PORT:-7863}"
 OLLAMA_PORT="${BRAIN_OLLAMA_PORT:-11434}"
 BIND="${BRAIN_BIND:-0.0.0.0}"
 LANG_FILE="${REPO_ROOT}/locale.env"
@@ -118,13 +119,24 @@ install_systemd() {
 
   sed -e "s|@REPO@|$REPO_ROOT|g" \
       -e "s|@MCP_PORT@|$MCP_PORT|g" \
+      -e "s|@MCP_UPSTREAM_PORT@|$MCP_UPSTREAM_PORT|g" \
       -e "s|@USER@|$svc_user|g" \
       "$LINUX_DIR/systemd/brain-mcp-gateway.service.template" \
       >"/etc/systemd/system/brain-mcp-gateway.service"
 
+  # MCP auth proxy — Bearer-token gate in front of supergateway.
+  sed -e "s|@REPO@|$REPO_ROOT|g" \
+      -e "s|@DATA_DIR@|$DATA_DIR|g" \
+      -e "s|@PYTHON@|$VENV_DIR/bin/python|g" \
+      -e "s|@MCP_PORT@|$MCP_PORT|g" \
+      -e "s|@MCP_UPSTREAM_PORT@|$MCP_UPSTREAM_PORT|g" \
+      -e "s|@USER@|$svc_user|g" \
+      "$LINUX_DIR/systemd/brain-mcp-auth-proxy.service.template" \
+      >"/etc/systemd/system/brain-mcp-auth-proxy.service"
+
   systemctl daemon-reload
-  systemctl enable brain-dashboard.service brain-mcp-gateway.service
-  systemctl restart brain-dashboard.service brain-mcp-gateway.service
+  systemctl enable brain-dashboard.service brain-mcp-gateway.service brain-mcp-auth-proxy.service
+  systemctl restart brain-dashboard.service brain-mcp-gateway.service brain-mcp-auth-proxy.service
 }
 
 pull_models() {

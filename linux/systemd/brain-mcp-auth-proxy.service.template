@@ -1,0 +1,22 @@
+[Unit]
+Description=Brain AI Hub — MCP auth proxy (Bearer token gate in front of supergateway)
+After=network.target brain-mcp-gateway.service
+Wants=brain-mcp-gateway.service
+
+[Service]
+Type=simple
+User=@USER@
+Group=@USER@
+WorkingDirectory=@REPO@
+Environment=BRAIN_DATA_DIR=@DATA_DIR@
+Environment=BRAIN_MCP_UPSTREAM=http://127.0.0.1:@MCP_UPSTREAM_PORT@
+Environment=BRAIN_MCP_BIND=0.0.0.0:@MCP_PORT@
+# Set to 1 if you want localhost (127.0.0.1) clients to skip the auth check
+# (useful when dashboard on the same box wants to talk to MCP directly).
+Environment=BRAIN_MCP_ALLOW_LOCAL=1
+ExecStart=@PYTHON@ -m uvicorn pipeline.mcp_auth_proxy:app --host 0.0.0.0 --port @MCP_PORT@ --no-access-log
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

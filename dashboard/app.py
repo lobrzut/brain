@@ -1180,6 +1180,20 @@ def api_skills_list() -> dict[str, Any]:
         return {"skills": [], "error": str(e)}
 
 
+@app.get("/api/skills/get")
+def api_skills_get(name: str) -> dict[str, Any]:
+    """Return raw markdown of a brain skill by filename (without .md).
+    Used by Reliqua/desktop to sync skills locally so they travel with the user."""
+    safe = "".join(c for c in name if c.isalnum() or c in "-_")
+    if not safe or safe != name:
+        raise HTTPException(400, "invalid skill name")
+    path = ROOT / "skills" / f"{safe}.md"
+    if not path.is_file():
+        raise HTTPException(404, f"skill not found: {safe}")
+    return {"name": safe, "content": path.read_text(encoding="utf-8"),
+            "mtime": path.stat().st_mtime, "size": path.stat().st_size}
+
+
 @app.post("/api/skills/open")
 def api_skills_open() -> dict[str, Any]:
     return _open_folder(ROOT / "skills")
@@ -1221,6 +1235,21 @@ def api_skills_current() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # CLI Skills (Claude Code)
 # ---------------------------------------------------------------------------
+@app.get("/api/cli-skills/get")
+def api_cli_skills_get(name: str) -> dict[str, Any]:
+    """Return SKILL.md content of a CLI skill (~/.claude/skills/<name>/SKILL.md).
+    Used by Reliqua/desktop to sync expertise skills locally."""
+    safe = "".join(c for c in name if c.isalnum() or c in "-_")
+    if not safe or safe != name:
+        raise HTTPException(400, "invalid skill name")
+    skills_dir = Path.home() / ".claude" / "skills"
+    skill_file = skills_dir / safe / "SKILL.md"
+    if not skill_file.is_file():
+        raise HTTPException(404, f"cli-skill not found: {safe}")
+    return {"name": safe, "content": skill_file.read_text(encoding="utf-8"),
+            "mtime": skill_file.stat().st_mtime, "size": skill_file.stat().st_size}
+
+
 @app.get("/api/cli-skills/list")
 def api_cli_skills_list() -> dict[str, Any]:
     try:
@@ -2201,6 +2230,85 @@ def api_agents_remove_prompt(body: AgentRequest) -> dict[str, Any]:
         return _load_agents().undeploy_system_prompt(body.agent_id)
     except Exception as e:
         return {"ok": False, "error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# MCP tokens — Bearer auth for the public MCP proxy (pipeline/mcp_auth_proxy.py)
+# ---------------------------------------------------------------------------
+MCP_TOKENS_FILE = DATA_ROOT / "mcp-tokens.json"
+
+
+def _load_mcp_tokens() -> list[dict]:
+    try:
+        return json.loads(MCP_TOKENS_FILE.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def _save_mcp_tokens(tokens: list[dict]) -> None:
+    MCP_TOKENS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    MCP_TOKENS_FILE.write_text(json.dumps(tokens, indent=2), encoding="utf-8")
+    try:
+        if hasattr(os, "chmod"):
+            os.chmod(MCP_TOKENS_FILE, 0o600)
+    except OSError:
+        pass
+
+
+def _mask_token(t: str) -> str:
+    return (t[:8] + "…" + t[-4:]) if t and len(t) > 16 else "***"
+
+
+class MCPTokenCreate(BaseModel):
+    name: str
+
+
+@app.get("/api/mcp/tokens")
+def api_mcp_tokens_list() -> dict[str, Any]:
+    """List token metadata — full token is NEVER returned here (only on create)."""
+    tokens = _load_mcp_tokens()
+    masked = [
+        {"name": t.get("name", ""), "created": t.get("created", ""),
+         "token": _mask_token(t.get("token", ""))}
+        for t in tokens
+    ]
+    return {"tokens": masked, "count": len(masked)}
+
+
+@app.post("/api/mcp/tokens")
+def api_mcp_tokens_create(body: MCPTokenCreate) -> dict[str, Any]:
+    """Generate a new bearer token. Returns the FULL token once — caller must
+    save it immediately (e.g. paste into mcp.json). Name must be unique."""
+    import secrets, datetime as _dt
+    name = (body.name or "").strip()
+    if not name:
+        raise HTTPException(400, "name required")
+    tokens = _load_mcp_tokens()
+    if any(t.get("name") == name for t in tokens):
+        raise HTTPException(409, f"token name already exists: {name}")
+    token = "btk_" + secrets.token_urlsafe(32)
+    entry = {
+        "name":    name,
+        "token":   token,
+        "created": _dt.datetime.now().isoformat(timespec="seconds"),
+    }
+    tokens.append(entry)
+    _save_mcp_tokens(tokens)
+    return {"ok": True, "name": name, "token": token, "created": entry["created"]}
+
+
+@app.delete("/api/mcp/tokens/{name}")
+def api_mcp_tokens_delete(name: str) -> dict[str, Any]:
+    """Revoke a token by name. Auth proxy picks up the change within 2s."""
+    tokens = _load_mcp_tokens()
+    before = len(tokens)
+    tokens = [t for t in tokens if t.get("name") != name]
+    if len(tokens) == before:
+        raise HTTPException(404, f"token not found: {name}")
+    _save_mcp_tokens(tokens)
+    return {"ok": True, "deleted": name, "remaining": len(tokens)}
+
+
 @app.post("/api/schedule/set_model")
 def api_schedule_set_model(body: ScheduleModelUpdate) -> dict[str, Any]:
     """Update per-task model selection (saved in schedule-config.json)."""
