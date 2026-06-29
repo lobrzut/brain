@@ -23,8 +23,6 @@ STATIC = Path(__file__).resolve().parent / "static"
 KEYS_FILE = DATA_ROOT / "api-keys.json"
 LIBRARY_DIR = DATA_ROOT / "library"
 VAULT_DIR = DATA_ROOT / "vault"
-DISTILL_STATUS = DATA_ROOT / "distill-status.json"
-DISTILL_SCRIPT = ROOT / "pipeline" / "distill.py"
 MCP_CONFIG = ROOT / "pipeline" / "mcp-servers.json"
 LOGS_DIR = logs_dir()
 BACKUPS_DIR = DATA_ROOT / "backups"
@@ -164,9 +162,6 @@ def auth_username(body: _UsernameBody, request: Request, response: Response):
     _set_session(response, AUTH.username())
     return {"ok": True, "username": AUTH.username()}
 
-# Transcript distillation subprocess handle
-_distill_proc: subprocess.Popen | None = None
-_redistill_proc: subprocess.Popen | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -541,64 +536,6 @@ def library_status() -> dict[str, Any]:
         "last_indexed": last_indexed,
         "needs_reindex": needs_reindex,
     }
-
-
-_distill_running_cache: dict[str, Any] = {"ts": 0.0, "value": False}
-
-def _is_distill_running() -> bool:
-    """Check for ACTIVE distill (only 'run'/'distill' actions, not quick 'sources'/'status').
-
-    Fast path: own subprocess handle (0ms).
-    Slow path: psutil.process_iter (~4s on Windows — scans all processes).
-    Cached for 5s to prevent ~/api/transcripts/status polling from burning CPU.
-    """
-    global _distill_proc, _distill_running_cache
-    # Fast path: own handle is authoritative when present
-    if _distill_proc is not None and _distill_proc.poll() is None:
-        return True
-
-    # Slow path with 60s cache — psutil.process_iter is ~4s on Windows,
-    # would burn ~30% CPU if called per /api/transcripts/status poll.
-    now = time.time()
-    if (now - _distill_running_cache["ts"]) < 60:
-        return _distill_running_cache["value"]
-
-    found = False
-    try:
-        for p in psutil.process_iter(["name", "cmdline"]):
-            try:
-                cmd = p.info.get("cmdline") or []
-                cmd_str = " ".join(str(c) for c in cmd)
-                if "distill.py" in cmd_str and any(
-                    action in cmd_str.split() for action in ("run", "distill", "collect")
-                ):
-                    found = True
-                    break
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-    except Exception:
-        pass
-
-    _distill_running_cache = {"ts": now, "value": found}
-    return found
-
-
-def distill_status() -> dict[str, Any]:
-    running = _is_distill_running()
-    status = {}
-    if DISTILL_STATUS.exists():
-        try: status = json.loads(DISTILL_STATUS.read_text(encoding="utf-8-sig"))
-        except Exception: pass
-    # Auto-correct stale "distilling" state when no process is actually running
-    if not running and status.get("state") == "distilling":
-        status["state"] = "idle"
-        status["stale"] = True
-        # Persist correction so subsequent reads stay consistent
-        try:
-            DISTILL_STATUS.write_text(json.dumps(status, indent=2), encoding="utf-8")
-        except Exception: pass
-    status["proc_running"] = running
-    return status
 
 
 # ---------------------------------------------------------------------------
@@ -990,87 +927,6 @@ def api_vault_deep_audit() -> dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-class RedistillRun(BaseModel):
-    model: str = "qwen2.5:14b"
-    limit: int = 5
-
-
-@app.post("/api/vault/redistill/run")
-def api_vault_redistill_run(body: RedistillRun) -> dict[str, Any]:
-    sched = _load_scheduler()
-    if sched._run_lock.locked():
-        return {"ok": False, "error": "Scheduler is currently running a background task. Please pause AUTO SCHEDULE first to run large batches manually."}
-        
-    global _redistill_proc
-    if _redistill_proc and _redistill_proc.poll() is None:
-        return {"ok": False, "error": "already running", "pid": _redistill_proc.pid}
-    
-    script_path = ROOT / "pipeline" / "redistill.py"
-    args = [_python_exe(), str(script_path), "batch", str(body.limit), body.model]
-    
-    log_path = LOGS_DIR / "redistill.log"
-    log_file = open(log_path, "ab")
-    env = os.environ.copy()
-    _opt_url = ""
-    try:
-        _opt_url = (json.loads((DATA_ROOT / "options.json").read_text(encoding="utf-8")).get("ollama_url") or "").strip()
-    except Exception: pass
-    env["OLLAMA_HOST"] = (_opt_url.replace("http://","").replace("https://","") if _opt_url
-                          else f"127.0.0.1:{CONFIG.get('ollama_port',11434)}")
-    
-    kwargs = {"stdout": log_file, "stderr": log_file, "env": env}
-    if os.name == "nt": kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-    
-    _redistill_proc = subprocess.Popen(args, **kwargs)
-    _redistill_proc._brain_t0 = time.time()  # for jobs panel elapsed display
-    return {"ok": True, "pid": _redistill_proc.pid, "log": str(log_path), "cmd": " ".join(args)}
-
-
-@app.post("/api/vault/redistill/stop")
-def api_vault_redistill_stop() -> dict[str, Any]:
-    global _redistill_proc
-    killed = []
-    if _redistill_proc and _redistill_proc.poll() is None:
-        try:
-            _redistill_proc.terminate()
-            try: _redistill_proc.wait(timeout=3)
-            except subprocess.TimeoutExpired: _redistill_proc.kill()
-            killed.append(_redistill_proc.pid)
-        except Exception: pass
-        
-    try:
-        import psutil
-        for p in psutil.process_iter(["pid", "name", "cmdline"]):
-            try:
-                cmd = p.info.get("cmdline") or []
-                if any("redistill.py" in str(c) for c in cmd):
-                    if p.info["pid"] not in killed:
-                        p.terminate()
-                        killed.append(p.info["pid"])
-            except Exception: pass
-    except Exception: pass
-    
-    _redistill_proc = None
-    
-    status_f = ROOT / "data" / "redistill-status.json"
-    if status_f.exists():
-        try:
-            s = json.loads(status_f.read_text(encoding="utf-8-sig"))
-            s["state"] = "stopped"
-            s["stopped_at"] = time.time()
-            status_f.write_text(json.dumps(s, indent=2), encoding="utf-8")
-        except Exception: pass
-
-    return {"ok": True, "stopped": bool(killed), "killed_pids": killed}
-
-
-@app.get("/api/vault/redistill/status")
-def api_vault_redistill_status() -> dict[str, Any]:
-    status_f = ROOT / "data" / "redistill-status.json"
-    if status_f.exists():
-        try: return json.loads(status_f.read_text(encoding="utf-8-sig"))
-        except Exception: pass
-    return {"state": "idle", "done": 0, "total": 0}
 
 
 @app.get("/api/vault/read")
@@ -1691,39 +1547,7 @@ def api_mcp_logs(sid: str, lines: int = 200) -> dict[str, Any]:
     return {"sid": sid, "log": _mcp.tail_log(sid, lines)}
 
 
-# ---------------------------------------------------------------------------
-# Transcripts / distillation
-# ---------------------------------------------------------------------------
 import threading as _threading
-
-_sources_cache: dict[str, Any] = {"data": None, "ts": 0.0, "error": None}
-_sources_lock = _threading.Lock()
-
-def _refresh_sources_loop():
-    """Background daemon that polls list_sources() once per 60s and updates
-    the cache. Was previously: subprocess spawn PER REQUEST (~12s each), with
-    a frontend polling /api/transcripts/sources several times per second from
-    multiple components → constant CPU burn. Now the endpoint never blocks."""
-    sys.path.insert(0, str(ROOT / "pipeline"))
-    while True:
-        try:
-            import importlib
-            if "distill" in sys.modules:
-                distill = sys.modules["distill"]
-            else:
-                distill = importlib.import_module("distill")
-            data = distill.list_sources()
-            with _sources_lock:
-                _sources_cache["data"]  = {"sources": data}
-                _sources_cache["ts"]    = time.time()
-                _sources_cache["error"] = None
-        except Exception as e:
-            with _sources_lock:
-                _sources_cache["error"] = str(e)
-        time.sleep(60)
-
-# Start background refresher
-_threading.Thread(target=_refresh_sources_loop, daemon=True).start()
 
 
 # ---------------------------------------------------------------------------
@@ -1865,78 +1689,10 @@ _threading.Thread(target=_sessions_watcher_loop, daemon=True).start()
 def api_jobs_active() -> dict[str, Any]:
     """Unified view of every long-running task brain knows about.
     Each item has: id, label, kind, started_at, stop_url."""
-    global _distill_proc, _code_proc, _rag_proc
+    global _code_proc, _rag_proc
     jobs = []
 
-    # 1. Distillation — check both: our subprocess handle + status file
-    # (latter catches external distill runs like `python distill.py distill ...`)
-    if _distill_proc and _distill_proc.poll() is None:
-        jobs.append({
-            "id":         "distill",
-            "kind":       "subprocess",
-            "label":      "Transcript distillation",
-            "pid":        _distill_proc.pid,
-            "started_at": getattr(_distill_proc, "_brain_t0", None),
-            "stop_url":   "/api/transcripts/stop",
-            "stop_method": "POST",
-        })
-        
-    global _redistill_proc
-    if _redistill_proc and _redistill_proc.poll() is None:
-        # Read progress from redistill-status.json so jobs panel shows real status
-        prog = {}
-        last_err = ""
-        try:
-            sf = ROOT / "data" / "redistill-status.json"
-            if sf.exists():
-                st = json.loads(sf.read_text(encoding="utf-8-sig"))
-                done  = st.get("done", 0)
-                total = st.get("total", 0)
-                prog = {"done": done, "total": total,
-                        "label": st.get("last_file", "")[:60],
-                        "errors": st.get("errors", 0)}
-                last_err = (st.get("last_err") or st.get("error") or "")[:200]
-        except Exception:
-            pass
-        label = "Vault redistillation"
-        if prog.get("total"):
-            err_part = f" · {prog['errors']} err" if prog.get("errors") else ""
-            label = f"Vault redistill {prog['done']}/{prog['total']}{err_part}"
-        jobs.append({
-            "id":         "redistill",
-            "kind":       "subprocess",
-            "label":      label,
-            "pid":        _redistill_proc.pid,
-            "started_at": getattr(_redistill_proc, "_brain_t0", None),
-            "progress":   prog,
-            "warning":    last_err,
-            "stop_url":   "/api/vault/redistill/stop",
-            "stop_method": "POST",
-        })
-    else:
-        # Read status file — could be running as separate CLI process
-        try:
-            status_f = ROOT / "data" / "distill-status.json"
-            if status_f.exists():
-                st = json.loads(status_f.read_text(encoding="utf-8"))
-                if st.get("state") == "distilling":
-                    done  = st.get("done", 0)
-                    total = st.get("total", 0)
-                    pct = f"{done}/{total}" if total else f"{done}"
-                    jobs.append({
-                        "id":         "distill_external",
-                        "kind":       "distill",
-                        "label":      f"Distill (CLI): {pct} · {st.get('model','?')}",
-                        "started_at": st.get("started_at"),
-                        "progress":   {"done": done, "total": total,
-                                       "label": st.get("current", "")},
-                        "stop_url":   "/api/transcripts/stop",
-                        "stop_method": "POST",
-                    })
-        except Exception:
-            pass
-
-    # 2. Library reindex
+    # 1. Library reindex
     if _rag_proc and _rag_proc.poll() is None:
         prog = {}
         try:
@@ -1963,7 +1719,7 @@ def api_jobs_active() -> dict[str, Any]:
             "stop_method": "POST",
         })
 
-    # 3. Code index scan
+    # 2. Code index scan
     if _code_proc and _code_proc.poll() is None:
         prog = {}
         try:
@@ -2328,102 +2084,6 @@ def api_schedule_set_model(body: ScheduleModelUpdate) -> dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-@app.get("/api/transcripts/sources")
-def api_transcripts_sources() -> dict[str, Any]:
-    """Non-blocking — returns cached value (refreshed every 60s by background
-    daemon). First request after startup may return empty until daemon
-    completes its first poll (~12s)."""
-    with _sources_lock:
-        if _sources_cache["data"] is not None:
-            return _sources_cache["data"]
-        if _sources_cache["error"]:
-            return {"sources": {}, "error": _sources_cache["error"], "warming": True}
-    return {"sources": {}, "warming": True}
-
-
-@app.get("/api/transcripts/status")
-def api_transcripts_status() -> dict[str, Any]:
-    return distill_status()
-
-
-class DistillRun(BaseModel):
-    mode: str = "run"          # collect | distill | run
-    model: str = "qwen2.5:14b"
-    limit: int | None = None
-
-
-@app.post("/api/transcripts/run")
-def api_transcripts_run(body: DistillRun) -> dict[str, Any]:
-    sched = _load_scheduler()
-    if sched._run_lock.locked():
-        return {"ok": False, "error": "Scheduler is currently running a background task. Please pause AUTO SCHEDULE first to run large batches manually."}
-        
-    global _distill_proc
-    if _distill_proc and _distill_proc.poll() is None:
-        return {"ok": False, "error": "already running",
-                "pid": _distill_proc.pid}
-    if body.mode not in ("collect", "distill", "run"):
-        raise HTTPException(400, "mode must be: collect | distill | run")
-    args = [_python_exe(), str(DISTILL_SCRIPT), body.mode]
-    if body.mode in ("distill", "run"):
-        args += ["--model", body.model]
-        if body.limit: args += ["--limit", str(body.limit)]
-        args += ["--only-missing"]
-    log_path = LOGS_DIR / "distill.log"
-    log_file = open(log_path, "ab")
-    env = os.environ.copy()
-    _opt_url = ""
-    try:
-        _opt_url = (json.loads((DATA_ROOT / "options.json").read_text(encoding="utf-8")).get("ollama_url") or "").strip()
-    except Exception: pass
-    env["OLLAMA_HOST"] = (_opt_url.replace("http://","").replace("https://","") if _opt_url
-                          else f"127.0.0.1:{CONFIG.get('ollama_port',11434)}")
-    kwargs = {"stdout": log_file, "stderr": log_file, "env": env}
-    if os.name == "nt": kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-    _distill_proc = subprocess.Popen(args, **kwargs)
-    return {"ok": True, "pid": _distill_proc.pid, "log": str(log_path),
-            "cmd": " ".join(args)}
-
-
-@app.post("/api/transcripts/stop")
-def api_transcripts_stop() -> dict[str, Any]:
-    """Stop distillation. Handles both in-memory handle AND stray processes."""
-    global _distill_proc
-    killed = []
-    # 1) Kill in-memory handle
-    if _distill_proc and _distill_proc.poll() is None:
-        try:
-            _distill_proc.terminate()
-            try: _distill_proc.wait(timeout=3)
-            except subprocess.TimeoutExpired: _distill_proc.kill()
-            killed.append(_distill_proc.pid)
-        except Exception: pass
-    # 2) Kill any other distill.py processes (orphans from previous dashboard restarts)
-    try:
-        for p in psutil.process_iter(["pid", "name", "cmdline"]):
-            try:
-                cmd = p.info.get("cmdline") or []
-                if any("distill.py" in str(c) for c in cmd):
-                    if p.info["pid"] not in killed:
-                        p.terminate()
-                        killed.append(p.info["pid"])
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-    except Exception: pass
-
-    _distill_proc = None
-    # Force-update status to idle
-    if DISTILL_STATUS.exists():
-        try:
-            s = json.loads(DISTILL_STATUS.read_text(encoding="utf-8-sig"))
-            s["state"] = "idle"
-            s["stopped_at"] = time.time()
-            DISTILL_STATUS.write_text(json.dumps(s, indent=2), encoding="utf-8")
-        except Exception: pass
-
-    return {"ok": True, "stopped": bool(killed), "killed_pids": killed}
-
-
 def _python_exe() -> str:
     return sys.executable
 
@@ -2702,10 +2362,10 @@ def _idle_watcher_loop():
     last_reindex_check = 0
     while not _idle_thread_stop.is_set():
         # --- Auto-unload models from VRAM after idle ---
-        # SKIP unload if distillation or reindex is actively running (they use Ollama)
+        # SKIP unload if reindex is actively running (it uses Ollama, when EMBED_BACKEND=ollama)
         try:
             cfg = _load_idle_config()
-            busy = _is_distill_running() or (_rag_proc is not None and _rag_proc.poll() is None)
+            busy = _rag_proc is not None and _rag_proc.poll() is None
             if cfg.get("auto_unload_enabled") and not busy:
                 idle_min = max(1, int(cfg.get("idle_minutes", 10)))
                 idle_sec = time.time() - _last_activity
@@ -2805,8 +2465,7 @@ def api_panic() -> dict[str, Any]:
 
     What it stops:
       - Scheduler (pauses 1h to prevent auto-restart)
-      - distill subprocess + redistill subprocess + RAG reindex subprocess
-      - codeindex subprocess + skill subprocess
+      - RAG reindex subprocess + codeindex subprocess + skill subprocess
       - Ollama models in VRAM (keep_alive=0 forces unload)
     """
     stopped: list[str] = []
@@ -2822,7 +2481,6 @@ def api_panic() -> dict[str, Any]:
 
     # 2) Kill known long-running subprocesses we track
     procs = [
-        ("_distill_proc",   "distill"),
         ("_rag_proc",       "library reindex"),
         ("_code_proc",      "code index"),
         ("_skill_proc",     "skill"),
@@ -2842,8 +2500,7 @@ def api_panic() -> dict[str, Any]:
 
     # 3) Best-effort kill any orphan python.exe running brain pipeline scripts
     if os.name == "nt":
-        for script in ("distill.py", "redistill.py", "rag.py", "codeindex.py",
-                        "note_quality.py"):
+        for script in ("rag.py", "codeindex.py", "note_quality.py"):
             try:
                 # WMIC-style: filter by command-line contains <script>
                 ps = (f'Get-CimInstance Win32_Process | Where-Object '

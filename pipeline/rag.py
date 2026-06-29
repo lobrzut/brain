@@ -68,7 +68,21 @@ def _resolve_ollama_url() -> str:
 OLLAMA_URL  = _resolve_ollama_url()
 OLLAMA_HOST = OLLAMA_URL.replace("http://", "").replace("https://", "")
 EMBED_MODEL = os.environ.get("BRAIN_EMBED_MODEL", "nomic-embed-text")
-EMBED_DIMS = 768  # nomic-embed-text default
+EMBED_DIMS = 768  # nomic-embed-text / nomic-embed-text-v1.5 — same dim either backend
+
+# Embedding backend: "fastembed" (default, in-process ONNX, no GPU/Ollama needed)
+# or "ollama" (HTTP call to a running Ollama, e.g. to match an existing GPU setup).
+EMBED_BACKEND = os.environ.get("BRAIN_EMBED_BACKEND", "fastembed").strip().lower()
+_FASTEMBED_MODEL_NAME = "nomic-ai/nomic-embed-text-v1.5"
+_fastembed_model = None  # lazy-loaded singleton (first call pays the ~530MB model load)
+
+
+def _get_fastembed_model():
+    global _fastembed_model
+    if _fastembed_model is None:
+        from fastembed import TextEmbedding
+        _fastembed_model = TextEmbedding(_FASTEMBED_MODEL_NAME)
+    return _fastembed_model
 
 CHUNK_CHAR  = 1800
 CHUNK_OVERLAP = 200
@@ -262,17 +276,31 @@ def _chunk_text(text: str, size: int = CHUNK_CHAR, overlap: int = CHUNK_OVERLAP)
     return [c for c in chunks if c]
 
 
-def _embed_batch(texts: list[str]) -> list[list[float]]:
-    """Embed texts via Ollama /api/embed (batched)."""
-    r = requests.post(
-        f"{OLLAMA_URL}/api/embed",
-        json={"model": EMBED_MODEL, "input": texts},
-        timeout=300,
-    )
-    if not r.ok:
-        raise RuntimeError(f"ollama embed failed: {r.status_code} {r.text[:200]}")
-    d = r.json()
-    return d.get("embeddings") or d.get("embedding") or []
+def _embed_batch(texts: list[str], is_query: bool = False) -> list[list[float]]:
+    """Embed texts. Backend selected by BRAIN_EMBED_BACKEND (default: fastembed,
+    in-process ONNX CPU, no GPU/Ollama needed). 'ollama' uses /api/embed on a
+    running Ollama instead — same model lineage, useful to match an existing
+    GPU-backed index (see EMBED_BACKEND docstring at top of file).
+
+    is_query distinguishes search queries from indexed documents — nomic-embed
+    models expect a "search_query: " / "search_document: " prefix for best
+    retrieval quality. Ollama's nomic-embed-text bakes this into its model
+    template already, so we only add it explicitly for the fastembed backend.
+    """
+    if EMBED_BACKEND == "ollama":
+        r = requests.post(
+            f"{OLLAMA_URL}/api/embed",
+            json={"model": EMBED_MODEL, "input": texts},
+            timeout=300,
+        )
+        if not r.ok:
+            raise RuntimeError(f"ollama embed failed: {r.status_code} {r.text[:200]}")
+        d = r.json()
+        return d.get("embeddings") or d.get("embedding") or []
+
+    prefix = "search_query: " if is_query else "search_document: "
+    model = _get_fastembed_model()
+    return [v.tolist() for v in model.embed([prefix + t for t in texts])]
 
 
 def _vec_to_blob(vec: list[float]) -> bytes:
@@ -430,7 +458,7 @@ def search(query: str, top_k: int = 5, source: str = "all") -> list[dict]:
         return []
     db = _open_db()
     try:
-        emb = _embed_batch([query])[0]
+        emb = _embed_batch([query], is_query=True)[0]
     except Exception:
         db.close()
         raise

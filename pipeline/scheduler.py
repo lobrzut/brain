@@ -45,53 +45,11 @@ DEFAULT_TASKS: list[dict[str, Any]] = [
     # IMPORTANT: All tasks default to enabled=False — opt-in by user.
     # The earlier defaults of enabled=True caused tasks to fire at night
     # while the user was actively working.
-    {
-        "id":        "redistill_thin",
-        "name":      "Re-destyluj krótkie notatki na qwen2.5:14b",
-        "description": "Notatki <500B mają tylko 1-2 zdania. Re-destylacja na większym modelu wyciąga 3-5× więcej treści. WŁĄCZ jeśli chcesz żeby brain to robił w tle gdy jesteś idle.",
-        "enabled":   False,
-        "window":    "any",
-        "require_idle_sec":  900,  # 15 min idle — strict
-        "require_cpu_below": 30,
-        "interval_sec":      1800,  # 30 min between batches
-        "action":      "redistill_thin",
-        "action_args": {"n": 5, "model": "qwen2.5:14b", "min_bytes": 500},
-    },
-    {
-        "id":        "redistill_thin_night",
-        "name":      "Re-destyluj krótkie notatki — TRYB NOCNY",
-        "description": "W nocy (22:00–06:00) WIĘKSZE batche (20 notatek). UWAGA: wymaga idle ≥10 min — nawet w nocy nie odpali się gdy ktoś jeszcze pracuje.",
-        "enabled":   False,
-        "window":    "night",
-        "require_idle_sec":  600,  # 10 min — was 0, caused the night-time CPU spike
-        "require_cpu_below": 80,
-        "interval_sec":      1800,  # 30 min
-        "action":      "redistill_thin",
-        "action_args": {"n": 20, "model": "qwen2.5:14b", "min_bytes": 500},
-    },
-    {
-        "id":        "distill_missing",
-        "name":      "Destyluj BRAKUJĄCE sesje (638 nigdy nieprzetworzonych)",
-        "description": "Sesje z brain-raw/normalized/ które NIGDY nie zostały zdestylowane. Batch 5 na qwen2.5:7b (~30s/sesja). 638 / 5 / 30min = ~64 noce. WŁĄCZ świadomie.",
-        "enabled":   False,
-        "window":    "any",
-        "require_idle_sec":  600,
-        "require_cpu_below": 50,
-        "interval_sec":      1800,  # 30 min between batches
-        "action":      "distill_missing",
-        "action_args": {"n": 5, "model": "qwen2.5:7b"},
-    },
-    {
-        "id":        "inbox_collect",
-        "name":      "Sprawdź inbox i destyluj nowe transkrypty",
-        "description": "Co 6 godzin zbiera nowe ZIP-y i destyluje. Wymaga 5 min idle żeby nie przerwać twojej pracy.",
-        "enabled":   False,
-        "window":    "any",
-        "require_cpu_below": 50,
-        "interval_sec":      900,  # 15m
-        "action":      "inbox_collect",
-        "action_args": {},
-    },
+    #
+    # NOTE: server-side distillation tasks (redistill_thin, distill_missing,
+    # inbox_collect) were removed — distillation now happens client-side
+    # (e.g. via Reliqua's host-side pipeline) and is deployed to brain as
+    # finished notes. See brain-light-reliqua-heavy in project memory.
     {
         "id":        "nightly_backup",
         "name":      "Backup vault + config (nocą)",
@@ -138,11 +96,23 @@ def load_tasks() -> list[dict]:
     if CONFIG_F.exists():
         try:
             tasks = json.loads(CONFIG_F.read_text(encoding="utf-8"))
+            # Migrate: drop persisted tasks whose action no longer exists (e.g.
+            # redistill_thin/distill_missing/inbox_collect — removed along with
+            # the server-side distillation pipeline). tick() already no-ops on
+            # unknown actions, but pruning keeps the UI task list honest instead
+            # of showing entries that can never run.
+            removed = [t for t in tasks if t.get("action") not in ACTIONS]
+            if removed:
+                tasks = [t for t in tasks if t.get("action") in ACTIONS]
+                print(f"[scheduler] pruned {len(removed)} task(s) with removed action(s): "
+                      f"{[t.get('id') for t in removed]}", flush=True)
             # Migrate: ensure new default tasks added if user has older file
             ids = {t["id"] for t in tasks}
             for d in DEFAULT_TASKS:
                 if d["id"] not in ids:
                     tasks.append(d.copy())
+            if removed:
+                save_tasks(tasks)
             return tasks
         except Exception:
             pass
@@ -278,67 +248,6 @@ def eligibility(task: dict, cpu_pct: float | None = None) -> tuple[bool, list[st
 # ---------------------------------------------------------------------------
 # Action registry
 # ---------------------------------------------------------------------------
-def _action_redistill_thin(**kwargs) -> dict:
-    import importlib
-    sys.path.insert(0, str(ROOT / "pipeline"))
-    if "redistill" in sys.modules:
-        redistill = importlib.reload(sys.modules["redistill"])
-    else:
-        redistill = importlib.import_module("redistill")
-    n         = int(kwargs.get("n", 5))
-    model     = str(kwargs.get("model", "qwen2.5:14b"))
-    min_bytes = int(kwargs.get("min_bytes", 500))
-
-    def _progress(i: int, total: int, result: dict):
-        update_progress(done=i, total=total,
-                        label=result.get("file", "?")[:60])
-
-    r = redistill.redistill_batch(
-        n, model, min_bytes,
-        progress_cb=_progress,
-        stop_check=stop_requested,
-    )
-    return {"done": r.get("done", 0), "errors": r.get("errors", 0),
-            "grew": r.get("grew", 0),
-            "remaining": r.get("total_remaining", 0), "model": model,
-            "bytes_growth": r.get("bytes_after", 0) - r.get("bytes_before", 0),
-            "error": r.get("error", "")}
-
-
-def _action_distill_missing(**kwargs) -> dict:
-    """Distill the next N sessions that have no .md yet."""
-    import importlib
-    sys.path.insert(0, str(ROOT / "pipeline"))
-    if "distill" in sys.modules:
-        distill = importlib.reload(sys.modules["distill"])
-    else:
-        distill = importlib.import_module("distill")
-    n     = int(kwargs.get("n", 5))
-    model = str(kwargs.get("model", "qwen2.5:7b"))
-    before = distill.count_missing()
-    # Use run_distill with only_missing flag + limit
-    distill.run_distill(model=model, limit=n, only_missing=True)
-    after = distill.count_missing()
-    status = distill.read_status()
-    return {
-        "model": model,
-        "written":   status.get("written", 0),
-        "remaining": after["missing"],
-        "before":    before["missing"],
-    }
-
-
-def _action_inbox_collect(**kwargs) -> dict:
-    import importlib
-    sys.path.insert(0, str(ROOT / "pipeline"))
-    if "distill" in sys.modules:
-        distill = importlib.reload(sys.modules["distill"])
-    else:
-        distill = importlib.import_module("distill")
-    n = distill.run_collect()
-    return {"new_sessions": n}
-
-
 def _action_nightly_backup(**kwargs) -> dict:
     """Create a ZIP backup of vault + config + skills. Rotate old backups."""
     import zipfile as _zip
@@ -434,9 +343,6 @@ def _action_note_quality_audit(**kwargs) -> dict:
 
 
 ACTIONS: dict[str, Callable[..., dict]] = {
-    "redistill_thin":     _action_redistill_thin,
-    "distill_missing":    _action_distill_missing,
-    "inbox_collect":      _action_inbox_collect,
     "dedupe_scan":        _action_dedupe_scan,
     "nightly_backup":     _action_nightly_backup,
     "note_quality_audit": _action_note_quality_audit,
@@ -455,62 +361,13 @@ def self_aware_check() -> list[dict]:
     """Periodically scans brain state and SUGGESTS new tasks the user might want.
     Pure suggestion — does NOT auto-enable anything. UI shows these as hints.
 
-    Detects:
-      - missing sessions (no .md) → suggest distill_missing
-      - thin notes (<500B) → suggest redistill_thin
-      - stale RAG index → suggest reindex
-      - inbox files unprocessed → suggest inbox_collect
+    Server-side distillation suggestions (missing sessions, thin notes, inbox
+    backlog) were removed along with the distillation pipeline — distillation
+    now happens client-side. This currently has nothing to suggest; kept as an
+    extension point for future lightweight, non-LLM suggestions (e.g. stale
+    RAG index, vault size warnings).
     """
-    suggestions = []
-    sys.path.insert(0, str(ROOT / "pipeline"))
-    try:
-        import importlib
-        # NO reload — keeps state, faster. Reload only if not loaded.
-        if "distill" not in sys.modules:
-            importlib.import_module("distill")
-        d = sys.modules["distill"]
-        c = d.count_missing()
-        if c["missing"] > 0:
-            suggestions.append({
-                "kind":     "missing_sessions",
-                "severity": "high" if c["missing"] > 100 else "medium",
-                "count":    c["missing"],
-                "task_id":  "distill_missing",
-                "msg":      f"{c['missing']} sesji bez .md — uruchom 'distill_missing'",
-            })
-    except Exception: pass
-
-    try:
-        import importlib
-        if "redistill" not in sys.modules:
-            importlib.import_module("redistill")
-        rd = sys.modules["redistill"]
-        # Get breakdown — total weak (incl. stubs)
-        weak = rd.find_thin_notes(500)         # <500B OR has stub marker
-        weak_count = len(weak)
-        if weak_count > 50:
-            suggestions.append({
-                "kind":     "weak_notes",
-                "severity": "high" if weak_count > 400 else "medium" if weak_count > 200 else "low",
-                "count":    weak_count,
-                "task_id":  "redistill_thin",
-                "msg":      f"{weak_count} słabych notatek (<500B lub stub-fail) — uruchom 'redistill_thin' z qwen2.5:14b",
-            })
-    except Exception: pass
-
-    try:
-        inbox = ROOT / "data" / "brain-raw" / "inbox"
-        n_inbox = len(list(inbox.glob("*"))) if inbox.exists() else 0
-        if n_inbox >= 1:
-            suggestions.append({
-                "kind":     "inbox_pending",
-                "severity": "low",
-                "count":    n_inbox,
-                "task_id":  "inbox_collect",
-                "msg":      f"{n_inbox} pliki w inbox — uruchom 'inbox_collect' żeby zebrać",
-            })
-    except Exception: pass
-
+    suggestions: list[dict] = []
     _self_aware["last_advice"] = suggestions
     _self_aware["ts"] = time.time()
     return suggestions
@@ -529,86 +386,9 @@ _currently_running: dict[str, Any] = {
 }
 
 
-# Estimated seconds per "unit of work" per model.
-# Used for ETA display. Auto-tuned by recording actual durations in log.
-MODEL_RATES_DEFAULT: dict[str, float] = {
-    "qwen2.5:3b":   10.0,
-    "qwen2.5:7b":   18.0,
-    "qwen2.5:14b":  30.0,
-    "qwen2.5:32b":  60.0,
-    "gemma3:4b":    12.0,
-    "gemma3:12b":   25.0,
-    "llama3.2:3b":   8.0,
-    "claude-haiku":  4.0,   # cloud API — fast even with chunks (~$0.015/note)
-}
-
-
-def _learned_rate(model: str) -> float | None:
-    """Average seconds-per-unit from recent successful runs of this model."""
-    log = read_log(100)
-    samples = [e for e in log
-               if e.get("ok") and isinstance(e.get("result"), dict)
-               and e["result"].get("done", 0) > 0
-               and (e.get("model") == model or model in str(e.get("name", "")))]
-    if len(samples) < 2:
-        return None
-    total_sec = sum(e.get("duration", 0) for e in samples[-10:])
-    total_units = sum(e["result"]["done"] for e in samples[-10:])
-    return total_sec / total_units if total_units > 0 else None
-
-
 def estimate_remaining(task: dict) -> dict:
     """How much work is queued + ETA based on per-model rate."""
     action = task.get("action")
-    args = task.get("action_args") or {}
-    if action == "redistill_thin":
-        sys.path.insert(0, str(ROOT / "pipeline"))
-        try:
-            import importlib
-            rd = importlib.reload(sys.modules["redistill"]) if "redistill" in sys.modules \
-                 else importlib.import_module("redistill")
-            min_bytes = int(args.get("min_bytes", 500))
-            pending = len(rd.find_thin_notes(min_bytes))
-        except Exception:
-            pending = None
-        model = args.get("model", "qwen2.5:14b")
-        rate = _learned_rate(model) or MODEL_RATES_DEFAULT.get(model, 30.0)
-        if pending is None:
-            return {"pending": None, "eta_sec": None, "rate_sec_per_unit": rate, "model": model}
-        return {
-            "pending":           pending,
-            "rate_sec_per_unit": round(rate, 1),
-            "eta_sec":           int(pending * rate),
-            "batch_size":        int(args.get("n", 5)),
-            "model":             model,
-        }
-    if action == "distill_missing":
-        sys.path.insert(0, str(ROOT / "pipeline"))
-        try:
-            import importlib
-            d = importlib.reload(sys.modules["distill"]) if "distill" in sys.modules \
-                else importlib.import_module("distill")
-            pending = d.count_missing()["missing"]
-        except Exception:
-            pending = None
-        model = args.get("model", "qwen2.5:7b")
-        rate = _learned_rate(model) or MODEL_RATES_DEFAULT.get(model, 30.0)
-        if pending is None:
-            return {"pending": None, "eta_sec": None, "model": model}
-        return {
-            "pending":           pending,
-            "rate_sec_per_unit": round(rate, 1),
-            "eta_sec":           int(pending * rate),
-            "batch_size":        int(args.get("n", 5)),
-            "model":             model,
-        }
-    if action == "inbox_collect":
-        inbox = ROOT / "data" / "brain-raw" / "inbox"
-        try:
-            pending = len(list(inbox.glob("*"))) if inbox.exists() else 0
-        except Exception:
-            pending = 0
-        return {"pending": pending, "eta_sec": pending * 5 if pending else 0}
     if action == "dedupe_scan":
         return {"pending": 1, "eta_sec": 15}
     return {"pending": None, "eta_sec": None}

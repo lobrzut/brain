@@ -30,12 +30,10 @@ EMBEDS = {
     "css":        load(ROOT / "dashboard" / "static" / "style.css"),
     "js":         load(ROOT / "dashboard" / "static" / "app.js"),
     "favicon":    load(ROOT / "dashboard" / "static" / "favicon.svg"),
-    "distillPy":  load(ROOT / "pipeline"  / "distill.py"),
     "ragPy":      load(ROOT / "pipeline"  / "rag.py"),
     "dedupePy":   load(ROOT / "pipeline"  / "dedupe.py"),
     "skillsPy":   load(ROOT / "pipeline"  / "skills.py"),
     "codeIndexPy": load(ROOT / "pipeline" / "codeindex.py"),
-    "redistillPy": load(ROOT / "pipeline" / "redistill.py"),
     "schedulerPy": load(ROOT / "pipeline" / "scheduler.py"),
     "agentsPy":   load(ROOT / "pipeline" / "agents.py"),
     "makeIconPy": load(ROOT / "pipeline"  / "make_icon.py"),
@@ -221,12 +219,10 @@ Set-Content -Path (Join-Path $P.Static    "index.html")      -Value $html       
 Set-Content -Path (Join-Path $P.Static    "style.css")       -Value $css         -Encoding UTF8
 Set-Content -Path (Join-Path $P.Static    "app.js")          -Value $js          -Encoding UTF8
 Set-Content -Path (Join-Path $P.Static    "favicon.svg")     -Value $favicon     -Encoding UTF8
-Set-Content -Path (Join-Path $P.Pipeline  "distill.py")      -Value $distillPy   -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "rag.py")          -Value $ragPy       -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "dedupe.py")       -Value $dedupePy    -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "skills.py")       -Value $skillsPy    -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "codeindex.py")    -Value $codeIndexPy -Encoding UTF8
-Set-Content -Path (Join-Path $P.Pipeline  "redistill.py")    -Value $redistillPy -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "scheduler.py")    -Value $schedulerPy -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "agents.py")       -Value $agentsPy    -Encoding UTF8
 Set-Content -Path (Join-Path $P.Pipeline  "mcp-servers.json") -Value "[]`n"     -Encoding UTF8
