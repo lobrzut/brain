@@ -184,6 +184,9 @@ This pipeline is independent of the core vault/search/MCP functionality — leav
 - `data/vault/` is **your private knowledge** — excluded from git.
 - Linux dashboard binds to `0.0.0.0` by default — use firewall/VPN for LAN-only access.
 - Single-user **login** gates the dashboard once you set a password on first run; `/api/status` and `/stats` stay public (for the tray client and external status tiles). To reset a forgotten password, delete `data/auth.json` and set it again on next load.
+- **⚠️ Before exposing `:7860` to the internet, set the admin password first.** Until a password is set, `/api/auth/setup` is open and `/api/*` requires no login at all — anyone who reaches the dashboard first claims the admin account. Either set the password over a LAN/SSH-tunnel connection before opening the port to the world, or restrict `:7860` with a firewall until setup is done.
+- MCP gateway (`:7862`) has **no auth of its own** — front it with `pipeline/mcp_auth_proxy.py` (Bearer token) before exposing beyond localhost/LAN. See [CONNECT.md §5E](CONNECT.md).
+- Login brute-force guard: 5 attempts / 5 min lockout, PBKDF2 (200k rounds), constant-time comparison. No CORS headers are sent — cross-origin requests are blocked by browsers' same-origin policy by default.
 
 ---
 

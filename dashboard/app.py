@@ -109,8 +109,8 @@ def auth_me(request: Request):
 def auth_setup(body: _LoginBody, response: Response):
     if AUTH.is_configured():
         raise HTTPException(status_code=403, detail="already configured")
-    if len((body.password or "").strip()) < 4:
-        raise HTTPException(status_code=400, detail="password too short (min 4)")
+    if len((body.password or "").strip()) < 8:
+        raise HTTPException(status_code=400, detail="password too short (min 8)")
     AUTH.set_credentials(body.username or "admin", body.password)
     _set_session(response, AUTH.username())
     return {"ok": True, "username": AUTH.username()}
@@ -140,8 +140,8 @@ def auth_logout(response: Response):
 def auth_password(body: _PasswordBody, request: Request, response: Response):
     if not AUTH.verify_token(request.cookies.get(COOKIE_NAME)):
         raise HTTPException(status_code=401, detail="auth required")
-    if len((body.new or "").strip()) < 4:
-        raise HTTPException(status_code=400, detail="password too short (min 4)")
+    if len((body.new or "").strip()) < 8:
+        raise HTTPException(status_code=400, detail="password too short (min 8)")
     if not AUTH.change_password(body.current, body.new):
         raise HTTPException(status_code=400, detail="wrong current password")
     _set_session(response, AUTH.username())

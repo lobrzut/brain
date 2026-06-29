@@ -10,7 +10,11 @@
 #
 # Quick start:
 #   docker compose up -d --build
-#   docker compose logs -f dashboard   # first run: set the admin password via /api/auth/setup
+#   # SET THE ADMIN PASSWORD IMMEDIATELY — until you do, /api/auth/setup is open
+#   # and every /api/* endpoint requires no login at all. Do this over a LAN/SSH
+#   # tunnel BEFORE opening :7860 to the internet, or firewall it until done:
+#   curl -X POST http://127.0.0.1:7860/api/auth/setup -H 'content-type: application/json' \
+#     -d '{"username":"admin","password":"<a real password, 4+ chars minimum>"}'
 #
 services:
   dashboard:
