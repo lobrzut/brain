@@ -179,6 +179,32 @@ Sprawdź: `claude mcp list`. W sesji Claude Code automatycznie zaproponuje narz�
 - **`@modelcontextprotocol/server-puppeteer`** — kontrola przeglądarki
 - Custom Python MCP — zobacz `mcp` SDK na PyPI
 
+### E) Dostęp zdalny / publiczny — Bearer auth
+
+MCP gateway (`:7862`, supergateway) sam nie ma żadnego auth — odpowiada każdemu kto
+zna URL. Jeśli wystawiasz brain poza localhost/LAN, **musisz** postawić przed nim
+`pipeline/mcp_auth_proxy.py` (FastAPI/uvicorn, sprawdza nagłówek `Authorization: Bearer <token>`).
+
+Konfiguracja (edycja Linux, `linux/install.sh` robi to automatycznie):
+1. supergateway nasłuchuje na `127.0.0.1:<MCP_UPSTREAM_PORT>` (domyślnie `7863`, internal-only)
+2. `mcp_auth_proxy.py` nasłuchuje na publicznym `:7862`, reverse-proxuje do `7863`, wymaga Bearer
+3. Tokeny zarządzane przez dashboard: `GET/POST/DELETE /api/mcp/tokens` (wymaga zalogowania)
+
+Token w `mcp.json` klienta:
+```json
+{
+  "mcpServers": {
+    "brain-rag": {
+      "type": "http",
+      "url": "http://<host>:7862/sse",
+      "headers": { "Authorization": "Bearer btk_xxxxx" }
+    }
+  }
+}
+```
+
+Bez tokenu (`BRAIN_MCP_ALLOW_LOCAL=1` w env auth proxy) `127.0.0.1` może łączyć się bez Bearer — przydatne gdy dashboard na tym samym hoście chce odpytać MCP.
+
 ---
 
 ## 6. Pipeline destylacji transkryptów

@@ -5,14 +5,14 @@
 
 [![Dashboard demo](docs/screenshots/dashboard-demo.gif)](https://github.com/lobrzut/brain)
 
-Portable **personal AI platform** — local LLM, knowledge vault, RAG, transcript distillation, and MCP integration for Claude Code, Cursor, and other agents.
+A **lightweight, self-hosted knowledge vault + semantic search + MCP server** for Claude Code, Cursor, Antigravity, Claude Desktop, and other agents. Built to run anywhere — a $5/mo VPS is enough; no GPU, no local LLM required for the core.
 
 Write-up: [Self-hosted second brain with MCP](https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4) (DEV Community)
 
 | Edition | Target | Install |
 |---------|--------|---------|
-| **Windows** | Portable folder, USB-copyable, AMD ROCm / Vulkan | `Install.bat` → `Start.bat` |
-| **Linux** | Homelab server, LAN MCP gateway (SSE) | `curl …/linux/bootstrap.sh \| sudo bash` |
+| **Windows** | Portable folder, USB-copyable | `Install.bat` → `Start.bat` |
+| **Linux** | Any VPS/homelab box, LAN or public MCP gateway (SSE) | `curl …/linux/bootstrap.sh \| sudo bash` |
 
 Install scripts support **Polish** and **English** (`locale.env`: `LANG=pl` or `LANG=en`).
 
@@ -20,13 +20,11 @@ Install scripts support **Polish** and **English** (`locale.env`: `LANG=pl` or `
 
 ## What Brain does
 
-1. **Local LLM** — Ollama (qwen2.5, nomic-embed). OpenAI-compatible API at `:11434/v1`.
-2. **Knowledge store** — vault (Markdown/Obsidian), library (PDF/EPUB/DOCX), semantic RAG (sqlite-vec), knowledge graph.
-3. **Agent bridge** — MCP servers (`brain-vault`, `brain-library`, `brain-rag`) + **BRAIN Client**, a tray app that auto-detects installed agents (Claude Desktop, Claude Code, Cursor, VS Code, Antigravity) and wires all three servers in one double-click.
+1. **Knowledge store** — vault (Markdown/Obsidian), library (PDF/EPUB/DOCX), semantic RAG (sqlite-vec), knowledge graph.
+2. **Agent bridge** — MCP servers (`brain-vault`, `brain-library`, `brain-rag`): semantic search, skills, code index, user profile. Bearer-token gated when exposed beyond localhost — see [CONNECT.md](CONNECT.md).
+3. **Dashboard** (`:7860`): service control, chat widget, vault/library browser, GPU/VRAM monitor (when present). Single-user **login** and a **4-language UI** — Polski / English / Deutsch / Українська.
 
-**Pipeline:** transcript distillation from Claude/Cursor/Antigravity → vault notes, redistill, dedupe, code index, scheduled background jobs.
-
-**Dashboard** (`:7860`): service control, chat widget, agent workflow prompts, Claude API key (optional — for Haiku distillation), GPU/VRAM monitor. Single-user **login** (first run sets the admin password) and a **4-language UI** — Polski / English / Deutsch / Українська, switchable from the top bar.
+**Where the "thinking" happens:** Brain core does not embed or summarize anything itself — it stores and searches what's handed to it. Distillation (chat → structured note) and embedding happen client-side, typically via a companion desktop app running your own Ollama or a cloud API key, then pushed to Brain's vault. This keeps the server cheap to run and trivial to deploy anywhere. (Brain still ships an optional, opt-in local-compute pipeline for people who want server-side Ollama processing instead — see **Advanced: local compute** below. It is disabled by default.)
 
 ---
 
@@ -120,33 +118,24 @@ Three servers get wired into your agent:
 - `brain-library` — PDF/EPUB library files
 - `brain-rag` — semantic search, skills, code index, user profile
 
-### BRAIN Client (recommended)
+### Recommended: copy-paste, not auto-deploy
 
-A small tray app that auto-detects installed agents and deploys all three MCP
-servers in one double-click — no PowerShell, no Python. Existing MCP entries
-are left untouched.
-
-The tray icon shows live status by colour — 🟢 server online + all agents
-wired, 🟡 partially wired, 🔴 offline. Right-click for a one-click **Deploy MCP
-everywhere**, open the dashboard, per-agent wire status, and settings (autostart,
-deploy-on-start, desktop shortcut).
-
-- **🪟 Windows** — [download `BrainClient.exe`](https://github.com/lobrzut/brain/releases/latest/download/BrainClient.exe)
-- **🐧 Linux / 🍎 macOS** — build from source:
-  ```bash
-  git clone https://github.com/lobrzut/brain && cd brain/client
-  pip install -r requirements.txt
-  python -m brain_client tray
-  ```
-
-By default it connects to `http://127.0.0.1:7862`. For a remote brain server set
-`BRAIN_MCP_URL=http://<host>:7862` (or edit `~/.brain/client.json`). It also
-supports an SSH transport (stdio over SSH) — see [`client/README.md`](client/README.md).
-
-### Manual
+Every client (Claude Code, Cursor, Antigravity, Claude Desktop, VS Code, Windsurf)
+changes its MCP config format between versions — auto-deploy tools tend to break
+silently. The recommended path is a companion desktop app that shows you exactly
+what's wired and generates a ready-to-paste config per client, but never writes to
+your files for you. See [CONNECT.md](CONNECT.md) for the manual snippets per
+client and the Bearer-token setup for remote access.
 
 - **Windows (stdio, local):** Dashboard → TOOLS → AGENTS panel.
-- **Linux (SSE, LAN):** point `~/.cursor/mcp.json` at your server — see [`linux/docs/cursor-mcp-remote.json`](linux/docs/cursor-mcp-remote.json).
+- **Linux (SSE, LAN or public):** point your client's `mcp.json` at your server — see [`linux/docs/cursor-mcp-remote.json`](linux/docs/cursor-mcp-remote.json) and [CONNECT.md](CONNECT.md) for the Bearer auth proxy.
+
+### Legacy: BRAIN Client (tray app, auto-deploy)
+
+An older tray app (`client/`) that auto-detects installed agents and writes
+all three MCP entries in one double-click. Kept for anyone who already
+relies on it, but no longer the recommended path — see above for why.
+Build from source: `cd client && pip install -r requirements.txt && python -m brain_client tray`.
 
 ---
 
@@ -174,6 +163,20 @@ Cached 60 s, no auth. Toggle in **Dashboard → OPTIONS → CONNECTIVITY**
 
 ---
 
+## Advanced: local compute (optional, disabled by default)
+
+Brain ships an opt-in pipeline for server-side distillation and embedding via
+a local Ollama install — useful if you'd rather have your Brain server do the
+LLM work itself instead of a desktop client:
+
+- **Local LLM** — Ollama (qwen2.5, nomic-embed). OpenAI-compatible API at `:11434/v1`.
+- **Pipeline** — transcript distillation from Claude/Cursor/Antigravity → vault notes, redistill, dedupe, code index, all driven by `pipeline/scheduler.py`'s adaptive background jobs (run only when the machine is idle).
+- All scheduled tasks **default to disabled** — enable explicitly in Dashboard → PIPELINE if you want this. Requires `ollama serve` reachable and enough VRAM/RAM for your chosen model.
+
+This pipeline is independent of the core vault/search/MCP functionality — leave it off and Brain still does everything described above.
+
+---
+
 ## Security notes
 
 - `data/api-keys.json` is **gitignored** — never commit API keys.
@@ -186,8 +189,9 @@ Cached 60 s, no auth. Toggle in **Dashboard → OPTIONS → CONNECTIVITY**
 
 ## Hardware
 
-- **Windows:** AMD RX 6800+ with Vulkan/ROCm, or NVIDIA with CUDA drivers. CPU-only works but distillation is slow.
-- **Linux:** Ollama via official install script; GPU auto-detected by Ollama.
+Core (vault + search + MCP): runs on 1 vCPU / 512MB RAM — any cheap VPS, a Raspberry Pi, or a spare laptop.
+
+GPU is only relevant if you enable **Advanced: local compute** above — AMD RX 6800+ (Vulkan/ROCm) or NVIDIA with CUDA drivers recommended for that path; CPU-only Ollama works too, just slower.
 
 ---
 
