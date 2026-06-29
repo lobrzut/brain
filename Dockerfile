@@ -9,15 +9,16 @@
 # Run:    see docker-compose.yml (this image alone needs CMD overridden per role)
 FROM python:3.12-slim
 
-# Node.js is needed only for supergateway (the MCP SSE/streamable-http gateway,
-# an npm package) — not for the FastAPI dashboard or auth proxy. Kept in the
-# same image rather than a second one so a single `docker build` covers every
-# role; the extra ~80MB is cheap next to fastembed's onnxruntime anyway.
+# Node is needed only for @modelcontextprotocol/server-filesystem (the
+# brain-vault/brain-library leaf MCP servers) — the actual SSE/HTTP
+# multiplexing across all three MCP servers is done by mcp-proxy (PyPI,
+# pip-installed below), not a Node-based gateway. This mirrors the real,
+# already-running production setup (verified against the live server).
 RUN apt-get update -qq && apt-get install -y --no-install-recommends \
       curl ca-certificates gnupg \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g supergateway \
+    && npm install -g @modelcontextprotocol/server-filesystem \
     && apt-get purge -y gnupg && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
@@ -31,7 +32,6 @@ RUN grep -v -E '^(pystray|pillow)' requirements.txt > requirements.core.txt \
 COPY dashboard/ dashboard/
 COPY pipeline/ pipeline/
 COPY skills/ skills/
-COPY linux/docker-mcp-multi-server.json linux/docker-mcp-multi-server.json
 COPY config.docker.json config.json
 
 # Data lives on a volume (see docker-compose.yml) — never baked into the image.

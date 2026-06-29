@@ -1,5 +1,5 @@
 [Unit]
-Description=Brain AI Hub — MCP SSE Gateway (supergateway, internal only)
+Description=Brain AI Hub — MCP HTTP/SSE Gateway (mcp-proxy, internal only)
 After=network.target brain-dashboard.service
 Wants=brain-dashboard.service
 
@@ -7,15 +7,18 @@ Wants=brain-dashboard.service
 Type=simple
 User=@USER@
 Group=@USER@
-WorkingDirectory=@REPO@
-Environment=NODE_ENV=production
+WorkingDirectory=@REPO@/dashboard
+Environment=PYTHONUNBUFFERED=1
 Environment=OLLAMA_HOST=127.0.0.1:11434
-# IMPORTANT: supergateway listens on @MCP_UPSTREAM_PORT@ (loopback-only).
-# Public clients hit brain-mcp-auth-proxy on @MCP_PORT@, which Bearer-checks
-# and reverse-proxies here. If supergateway does not honor --host on your
-# version, ensure firewall blocks @MCP_UPSTREAM_PORT@ from LAN:
-#   sudo ufw deny @MCP_UPSTREAM_PORT@/tcp
-ExecStart=/usr/bin/npx -y supergateway --multiServerConfig @REPO@/linux/mcp-multi-server.json --port @MCP_UPSTREAM_PORT@ --host 127.0.0.1 --outputTransport sse --ssePath /sse --messagePath /message
+# mcp-proxy (PyPI: mcp-proxy, sparfenyuk) multiplexes brain-vault/brain-library
+# (filesystem MCP servers, via the npm-installed mcp-server-filesystem binary)
+# and brain-rag (mcp_rag.py, unnamed/default server) behind one HTTP/SSE port.
+# Binds to loopback-only — public clients hit brain-mcp-auth-proxy on the
+# configured public port, which Bearer-checks and reverse-proxies here.
+ExecStart=@VENV@/bin/mcp-proxy --host 127.0.0.1 --port @MCP_UPSTREAM_PORT@ --pass-environment \
+  --named-server brain-vault "mcp-server-filesystem @DATA@/vault" \
+  --named-server brain-library "mcp-server-filesystem @DATA@/library" \
+  @VENV@/bin/python mcp_rag.py
 Restart=on-failure
 RestartSec=5
 

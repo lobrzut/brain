@@ -36,6 +36,12 @@ install_packages() {
   if ! command -v node >/dev/null 2>&1; then
     apt-get install -y -qq nodejs npm || true
   fi
+  # mcp-proxy (Python, in venv via requirements.txt) needs a filesystem MCP
+  # server binary for the vault/library named-servers — this is the only
+  # thing Node is used for; mcp-proxy itself does the SSE/HTTP multiplexing.
+  if ! command -v mcp-server-filesystem >/dev/null 2>&1; then
+    npm install -g @modelcontextprotocol/server-filesystem || true
+  fi
 }
 
 setup_data_dirs() {
@@ -87,17 +93,6 @@ write_config() {
 EOF
 }
 
-write_mcp_gateway_config() {
-  local tpl="$LINUX_DIR/mcp-multi-server.json.template"
-  local out="$LINUX_DIR/mcp-multi-server.json"
-  local py="$VENV_DIR/bin/python"
-  sed -e "s|@VAULT@|$DATA_DIR/vault|g" \
-      -e "s|@LIBRARY@|$DATA_DIR/library|g" \
-      -e "s|@PYTHON@|$py|g" \
-      -e "s|@MCP_RAG@|$REPO_ROOT/dashboard/mcp_rag.py|g" \
-      "$tpl" >"$out"
-}
-
 install_systemd() {
   log "$(L install_systemd)"
   local svc_user="${BRAIN_USER:-brain}"
@@ -118,7 +113,8 @@ install_systemd() {
       >"/etc/systemd/system/brain-dashboard.service"
 
   sed -e "s|@REPO@|$REPO_ROOT|g" \
-      -e "s|@MCP_PORT@|$MCP_PORT|g" \
+      -e "s|@DATA@|$DATA_DIR|g" \
+      -e "s|@VENV@|$VENV_DIR|g" \
       -e "s|@MCP_UPSTREAM_PORT@|$MCP_UPSTREAM_PORT|g" \
       -e "s|@USER@|$svc_user|g" \
       "$LINUX_DIR/systemd/brain-mcp-gateway.service.template" \
@@ -156,7 +152,6 @@ main() {
   setup_venv
   install_ollama
   write_config
-  write_mcp_gateway_config
   install_systemd
   pull_models
 

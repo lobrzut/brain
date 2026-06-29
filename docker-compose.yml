@@ -2,7 +2,7 @@
 #
 # Three services, one image — mirrors linux/install.sh's systemd layout:
 #   dashboard       FastAPI UI + REST API                      :7860
-#   mcp-gateway     supergateway, INTERNAL ONLY (no published port)
+#   mcp-gateway     mcp-proxy, INTERNAL ONLY (no published port)
 #   mcp-auth-proxy  Bearer-gated public entrypoint to MCP       :7862
 #
 # Put a reverse proxy (Caddyfile in this repo) in front for TLS + a domain.
@@ -30,12 +30,18 @@ services:
     restart: unless-stopped
     # No `ports:` — only mcp-auth-proxy is reachable from outside the
     # compose network. Other services reach this one as http://mcp-gateway:7863.
-    working_dir: /app
+    # mcp-proxy (PyPI, sparfenyuk) multiplexes brain-vault/brain-library
+    # (filesystem servers) + brain-rag (mcp_rag.py, default/unnamed server)
+    # behind one HTTP/SSE port — verified against the real production
+    # invocation running on the live brain server (systemctl cat
+    # brain-mcp-http.service), NOT the supergateway --multiServerConfig flag
+    # this originally shipped with, which no longer exists in supergateway 3.x.
+    working_dir: /app/dashboard
     command: >
-      npx -y supergateway
-      --multiServerConfig linux/docker-mcp-multi-server.json
-      --port 7863 --host 0.0.0.0
-      --outputTransport sse --ssePath /sse --messagePath /message
+      mcp-proxy --host 0.0.0.0 --port 7863 --pass-environment
+      --named-server brain-vault "mcp-server-filesystem /data/vault"
+      --named-server brain-library "mcp-server-filesystem /data/library"
+      python mcp_rag.py
     volumes:
       - brain-data:/data
     environment:
