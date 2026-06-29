@@ -1,0 +1,17 @@
+bin/
+data/
+logs/
+client/build/
+client/dist/
+client/brain_client.egg-info/
+qnap-media-stack/
+.git/
+.venv/
+venv/
+__pycache__/
+*.pyc
+node_modules/
+*.log
+*.bak
+.idea/
+.vscode/

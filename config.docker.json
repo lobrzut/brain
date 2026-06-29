@@ -1,0 +1,14 @@
+{
+  "version": "0.6.0",
+  "edition": "linux",
+  "root": "/app",
+  "data_dir": "/data",
+  "bind_host": "0.0.0.0",
+  "dashboard_port": 7860,
+  "mcp_gateway_port": 7862,
+  "services": [
+    { "title": "Vault", "url": null, "id": "vault", "icon": "vault" },
+    { "title": "Vector DB", "url": null, "id": "vectordb", "icon": "db" },
+    { "title": "Knowledge Graph", "url": "/graph", "id": "graph", "icon": "graph" }
+  ]
+}

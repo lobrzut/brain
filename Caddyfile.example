@@ -1,0 +1,25 @@
+# Brain — example Caddy reverse proxy config (TLS via Let's Encrypt + a domain)
+#
+# Usage: copy to Caddyfile, replace the two domains below, then either run
+# Caddy directly (`caddy run`) or add it as a 4th service in docker-compose.yml:
+#
+#   caddy:
+#     image: caddy:2-alpine
+#     restart: unless-stopped
+#     ports: ["80:80", "443:443"]
+#     volumes:
+#       - ./Caddyfile:/etc/caddy/Caddyfile
+#       - caddy-data:/data
+#     depends_on: [dashboard, mcp-auth-proxy]
+#
+# (and add `caddy-data:` under the top-level `volumes:` in docker-compose.yml)
+
+brain.example.com {
+	reverse_proxy dashboard:7860
+}
+
+mcp.example.com {
+	# Bearer auth happens inside mcp-auth-proxy itself (pipeline/mcp_auth_proxy.py)
+	# — Caddy here is just TLS termination + a stable public hostname.
+	reverse_proxy mcp-auth-proxy:7862
+}
