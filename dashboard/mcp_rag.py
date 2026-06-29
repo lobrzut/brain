@@ -123,10 +123,17 @@ async def list_tools() -> list[Tool]:
                 "Save the current conversation to the brain vault as a structured note. "
                 "CRITICAL: If the user says 'zapisz do brain', 'zapisz do braim', 'zapisz rozmowę', "
                 "'zapisz', 'save to brain', or similar, you MUST immediately invoke this tool. "
-                "Read the entire conversation history, extract all arguments (source, topic, decisions, "
-                "solutions, facts, open_questions, summary, msg_count) directly from the context, "
-                "and execute the tool. Do not ask the user for these parameters, just extract them "
-                "and call this tool. The note will be saved to data/vault/sessions/ and auto-indexed."
+                "Read the entire conversation history, extract ALL arguments directly from the context. "
+                "\n\n"
+                "QUALITY RULES — these notes are read months later, generalizations are USELESS:\n"
+                "• Prefer CONCRETE over abstract. 'Edited dashboard/app.py:2154 to add /api/agents/deploy' "
+                "beats 'updated dashboard'.\n"
+                "• Include exact file paths with line numbers, exact commands run, exact URLs/IPs/ports, "
+                "exact error messages (HTTP codes, stack lines).\n"
+                "• Record what was TRIED AND FAILED in attempts_failed — anti-solutions are gold for "
+                "future debugging.\n"
+                "• Root cause ≠ solution. Put the WHY in root_causes (e.g. 'mcp-proxy expects /mcp, "
+                "Antigravity sent /sse'), the FIX in solutions (e.g. 'changed serverUrl to /mcp')."
             ),
             inputSchema={
                 "type": "object",
@@ -134,17 +141,29 @@ async def list_tools() -> list[Tool]:
                     "source":    {"type": "string",
                                   "description": "Which AI assistant — 'antigravity', 'claude-desktop', 'claude-code', 'cursor', etc."},
                     "topic":     {"type": "string",
-                                  "description": "Short topic/title (e.g. 'Pine Script trading strategy debugging')"},
-                    "decisions": {"type": "array", "items": {"type": "string"},
-                                  "description": "Concrete decisions made during this session (bullet form)"},
-                    "solutions": {"type": "array", "items": {"type": "string"},
-                                  "description": "Working solutions / code / commands established"},
-                    "facts":     {"type": "array", "items": {"type": "string"},
-                                  "description": "Facts learned (terms, behaviors, gotchas)"},
-                    "open_questions": {"type": "array", "items": {"type": "string"},
-                                        "description": "Questions still unanswered, to follow up later"},
+                                  "description": "Short topic/title (e.g. 'Brain MCP audit + Antigravity config fix')"},
                     "summary":   {"type": "string",
-                                  "description": "1-3 sentence high-level summary"},
+                                  "description": "2-4 sentence high-level summary — what happened, why, outcome"},
+                    "decisions": {"type": "array", "items": {"type": "string"},
+                                  "description": "Concrete decisions made (bullet form). Include rationale: 'Chose X over Y because Z'"},
+                    "solutions": {"type": "array", "items": {"type": "string"},
+                                  "description": "Working FIXES with concrete details (file:line, exact command, config diff). What actually worked."},
+                    "root_causes": {"type": "array", "items": {"type": "string"},
+                                  "description": "WHY things broke (separate from solutions). 'X expected Y but got Z because W'. Future-debugging gold."},
+                    "attempts_failed": {"type": "array", "items": {"type": "string"},
+                                  "description": "Anti-solutions — what was tried and DIDN'T work, and why. Prevents wasted future attempts."},
+                    "files_touched": {"type": "array", "items": {"type": "string"},
+                                  "description": "Concrete files edited or referenced with paths and (when relevant) line numbers. E.g. 'dashboard/app.py:2154-2203 (api_agents endpoints)'"},
+                    "commands_run": {"type": "array", "items": {"type": "string"},
+                                  "description": "Exact commands executed (bash, powershell, curl, git). Include flags and output snippets if relevant."},
+                    "endpoints_urls_ips": {"type": "array", "items": {"type": "string"},
+                                  "description": "All URLs, hostnames, IPs, ports, paths discussed/used. E.g. 'http://192.168.1.201:7862/mcp (mcp-proxy streamable-http)'."},
+                    "errors_seen": {"type": "array", "items": {"type": "string"},
+                                  "description": "Exact error messages observed (HTTP codes, stack snippets, log lines). Critical for future grep."},
+                    "facts":     {"type": "array", "items": {"type": "string"},
+                                  "description": "Non-obvious facts learned: terms, behaviors, gotchas, version quirks. Things you didn't know before this session."},
+                    "open_questions": {"type": "array", "items": {"type": "string"},
+                                        "description": "Questions still unanswered. Mark with owner/next-step where possible."},
                     "msg_count": {"type": "integer", "default": 0,
                                   "description": "Approximate number of messages in this session"},
                 },
@@ -314,14 +333,20 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
 
     if name == "save_conversation":
         import datetime, re
-        src       = (arguments.get("source") or "unknown").strip().lower()
-        topic     = (arguments.get("topic") or "untitled").strip()
-        summary   = (arguments.get("summary") or "").strip()
-        decisions = arguments.get("decisions") or []
-        solutions = arguments.get("solutions") or []
-        facts     = arguments.get("facts") or []
-        questions = arguments.get("open_questions") or []
-        msg_count = int(arguments.get("msg_count") or 0)
+        src             = (arguments.get("source") or "unknown").strip().lower()
+        topic           = (arguments.get("topic") or "untitled").strip()
+        summary         = (arguments.get("summary") or "").strip()
+        decisions       = arguments.get("decisions") or []
+        solutions       = arguments.get("solutions") or []
+        root_causes     = arguments.get("root_causes") or []
+        attempts_failed = arguments.get("attempts_failed") or []
+        files_touched   = arguments.get("files_touched") or []
+        commands_run    = arguments.get("commands_run") or []
+        endpoints       = arguments.get("endpoints_urls_ips") or []
+        errors_seen     = arguments.get("errors_seen") or []
+        facts           = arguments.get("facts") or []
+        questions       = arguments.get("open_questions") or []
+        msg_count       = int(arguments.get("msg_count") or 0)
 
         # Sanitize topic for filename — keep alphanumerics + underscores
         slug = re.sub(r"[^a-zA-Z0-9]+", "_", topic)[:60].strip("_") or "session"
@@ -336,6 +361,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         def _bullets(items):
             return "\n".join(f"- {x}" for x in items) if items else "- _(none)_"
 
+        # Build optional sections — only render if there's content (avoid noise notes)
+        def _section(title: str, items) -> str:
+            if not items:
+                return ""
+            return f"\n## {title}\n{_bullets(items)}\n"
+
         content = f"""---
 source: {src}
 project: {topic}
@@ -343,6 +374,7 @@ date: {date}
 session_id: {time_part}
 msg_count: {msg_count}
 saved_via: mcp_save_conversation
+schema_version: 2
 ---
 
 # {date} · {src} · {topic}
@@ -353,13 +385,16 @@ saved_via: mcp_save_conversation
 ## Decisions
 {_bullets(decisions)}
 
+## Root causes
+{_bullets(root_causes)}
+
 ## Solutions
 {_bullets(solutions)}
-
+{_section("Attempts that failed", attempts_failed)}{_section("Files touched", files_touched)}{_section("Commands run", commands_run)}{_section("Endpoints / URLs / IPs", endpoints)}{_section("Errors seen", errors_seen)}
 ## Facts
 {_bullets(facts)}
 
-## Open Questions
+## Open questions
 {_bullets(questions)}
 """
         try:
