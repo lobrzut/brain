@@ -5,6 +5,8 @@
 
 [![Dashboard demo](docs/screenshots/dashboard-demo.gif)](https://github.com/lobrzut/brain)
 
+> 🚧 **This project is evolving.** Brain is being folded into a bigger, more integrated product — paired with a companion desktop app for cross-machine sync, distillation, and richer workflows — launching under a new name. This repo stays as-is and keeps working in the meantime. Watch this space.
+
 A **lightweight, self-hosted knowledge vault + semantic search + MCP server** for Claude Code, Cursor, Antigravity, Claude Desktop, and other agents. Built to run anywhere — a $5/mo VPS is enough; no GPU, no local LLM required for the core.
 
 Write-up: [Self-hosted second brain with MCP](https://dev.to/lobrzut/self-hosted-second-brain-with-mcp-59d4) (DEV Community)
